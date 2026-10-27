@@ -7,10 +7,20 @@
 
 const fs = require('fs');
 const path = require('path');
+const { randomUUID } = require('crypto');
 
 class RoutePlanner {
   constructor(storageDir) {
-    this.storageDir = storageDir || path.join(__dirname, '..', 'data', 'navigation');
+    if (!storageDir) {
+      try {
+        const { app } = require('electron');
+        storageDir = path.join(app.getPath('userData'), 'navigation');
+      } catch {
+        // خارج Electron (الاختبارات) — احتياطي داخل مجلد المشروع
+        storageDir = path.join(__dirname, '..', 'data', 'navigation');
+      }
+    }
+    this.storageDir = storageDir;
     this.storageFile = path.join(this.storageDir, 'routes.json');
 
     this.routes = [];
@@ -35,7 +45,10 @@ class RoutePlanner {
   loadFromDisk() {
     try {
       if (fs.existsSync(this.storageFile)) {
-        const raw = fs.readFileSync(this.storageFile, 'utf8').replace(/^\uFEFF/, '').trim();
+        const raw = fs
+          .readFileSync(this.storageFile, 'utf8')
+          .replace(/^\uFEFF/, '')
+          .trim();
         if (raw) {
           const data = JSON.parse(raw);
           this.routes = data.routes || [];
@@ -80,7 +93,6 @@ class RoutePlanner {
    * المسار المتعامد يحافظ على زاوية بوصلة ثابتة وهو المعيار المعتمد في الخرائط الملاحية
    */
   static rhumbDistanceAndBearing(lat1, lon1, lat2, lon2) {
-    const R_NM = 3440.065; // نصف قطر الأرض بالأميال البحرية (1 rad = 60 NM تقريباً)
     const phi1 = (lat1 * Math.PI) / 180.0;
     const phi2 = (lat2 * Math.PI) / 180.0;
     const dPhi = phi2 - phi1;
@@ -88,7 +100,7 @@ class RoutePlanner {
 
     // معالجة خط الزوال العكسي 180 درجة
     if (Math.abs(dLambda) > Math.PI) {
-      dLambda = dLambda > 0 ? -(2 * Math.PI - dLambda) : (2 * Math.PI + dLambda);
+      dLambda = dLambda > 0 ? -(2 * Math.PI - dLambda) : 2 * Math.PI + dLambda;
     }
 
     const dPsi = Math.log(Math.tan(Math.PI / 4 + phi2 / 2) / Math.tan(Math.PI / 4 + phi1 / 2));
@@ -116,9 +128,9 @@ class RoutePlanner {
     const dPhi = phi2 - phi1;
     const dLambda = ((lon2 - lon1) * Math.PI) / 180.0;
 
-    const a = Math.sin(dPhi / 2) * Math.sin(dPhi / 2) +
-              Math.cos(phi1) * Math.cos(phi2) *
-              Math.sin(dLambda / 2) * Math.sin(dLambda / 2);
+    const a =
+      Math.sin(dPhi / 2) * Math.sin(dPhi / 2) +
+      Math.cos(phi1) * Math.cos(phi2) * Math.sin(dLambda / 2) * Math.sin(dLambda / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
     // المسافة بالأميال البحرية
@@ -169,13 +181,13 @@ class RoutePlanner {
     const ttgMinutes = Math.round(ttgHours * 60);
 
     return {
-      dtwNm: parseFloat(dtw.toFixed(2)),       // المسافة إلى النقطة
-      btwDeg: parseFloat(btw.toFixed(1)),      // زاوية التوجيه للهدف
+      dtwNm: parseFloat(dtw.toFixed(2)), // المسافة إلى النقطة
+      btwDeg: parseFloat(btw.toFixed(1)), // زاوية التوجيه للهدف
       xteNm: parseFloat(Math.abs(xteNm).toFixed(3)), // قيمة الانحراف
-      xteSteerDir: steerDir,                   // جهة التصحيح (L / R)
-      vmgKts: parseFloat(vmg.toFixed(1)),      // السرعة نحو الهدف
-      ttgMinutes: ttgMinutes,                  // الدقائق المتبقية
-      arrivalAlarm: dtw <= 0.05                // وصل (نصف قطر 100 متر)
+      xteSteerDir: steerDir, // جهة التصحيح (L / R)
+      vmgKts: parseFloat(vmg.toFixed(1)), // السرعة نحو الهدف
+      ttgMinutes: ttgMinutes, // الدقائق المتبقية
+      arrivalAlarm: dtw <= 0.05 // وصل (نصف قطر 100 متر)
     };
   }
 
@@ -183,14 +195,32 @@ class RoutePlanner {
   // إدارة النقاط الإرشادية (Waypoints)
   // =========================================================
 
+  static isValidLatLon(lat, lon) {
+    const la = Number(lat);
+    const lo = Number(lon);
+    return Number.isFinite(la) && Number.isFinite(lo) && la >= -90 && la <= 90 && lo >= -180 && lo <= 180;
+  }
+
+  /**
+   * معرّف فريد تشفير (UUIDv4) مع بادئة بشرية القراءة — بديل Date.now()+random()
+   */
+  static newId(prefix) {
+    return `${prefix}_${randomUUID()}`;
+  }
+
   createWaypoint(lat, lon, name = '', desc = '') {
-    const id = 'wpt_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+    const la = parseFloat(lat);
+    const lo = parseFloat(lon);
+    if (!RoutePlanner.isValidLatLon(la, lo)) {
+      throw new Error(`إحداثيات غير صالحة للنقطة الإرشادية: ${lat}, ${lon}`);
+    }
+    const id = RoutePlanner.newId('wpt');
     const defaultName = name || `WPT ${String(this.waypoints.length + 1).padStart(2, '0')}`;
     const wpt = {
       id,
       name: defaultName,
-      lat: parseFloat(lat),
-      lon: parseFloat(lon),
+      lat: la,
+      lon: lo,
       desc: desc || '',
       created: new Date().toISOString()
     };
@@ -200,10 +230,10 @@ class RoutePlanner {
   }
 
   deleteWaypoint(wptId) {
-    this.waypoints = this.waypoints.filter(w => w.id !== wptId);
+    this.waypoints = this.waypoints.filter((w) => w.id !== wptId);
     // إزالتها أيضاً من أي مسارات تحتويها
     for (const route of this.routes) {
-      route.points = route.points.filter(p => p.id !== wptId);
+      route.points = route.points.filter((p) => p.id !== wptId);
       this._recalculateRoute(route);
     }
     this.saveToDisk();
@@ -215,13 +245,17 @@ class RoutePlanner {
   // =========================================================
 
   createRoute(name = '', points = [], navType = 'rhumb') {
-    const id = 'rte_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+    const safePoints = (points || []).filter((p) => RoutePlanner.isValidLatLon(p.lat, p.lon));
+    if (safePoints.length !== (points || []).length) {
+      throw new Error('المسار يحتوي إحداثيات غير صالحة.');
+    }
+    const id = RoutePlanner.newId('rte');
     const defaultName = name || `مسار رحلة ${this.routes.length + 1}`;
     const newRoute = {
       id,
       name: defaultName,
-      navType: navType || 'rhumb',
-      points: points || [],
+      navType: navType === 'great_circle' ? 'great_circle' : 'rhumb',
+      points: safePoints,
       legs: [],
       totalDistanceNm: 0,
       estimatedTimeHours: 0,
@@ -239,13 +273,16 @@ class RoutePlanner {
   }
 
   addPointToRoute(routeId, lat, lon, name = '') {
-    const route = this.routes.find(r => r.id === routeId);
+    const route = this.routes.find((r) => r.id === routeId);
     if (!route) return null;
+    if (!RoutePlanner.isValidLatLon(lat, lon)) {
+      throw new Error(`إحداثيات غير صالحة: ${lat}, ${lon}`);
+    }
 
     const ptIndex = route.points.length + 1;
     const ptName = name || `${route.name} - P${ptIndex}`;
     const pt = {
-      id: 'pt_' + Date.now() + '_' + ptIndex,
+      id: RoutePlanner.newId('pt'),
       name: ptName,
       lat: parseFloat(lat),
       lon: parseFloat(lon)
@@ -258,7 +295,7 @@ class RoutePlanner {
   }
 
   removePointFromRoute(routeId, pointIndex) {
-    const route = this.routes.find(r => r.id === routeId);
+    const route = this.routes.find((r) => r.id === routeId);
     if (!route) return null;
 
     if (pointIndex >= 0 && pointIndex < route.points.length) {
@@ -270,7 +307,7 @@ class RoutePlanner {
   }
 
   deleteRoute(routeId) {
-    this.routes = this.routes.filter(r => r.id !== routeId);
+    this.routes = this.routes.filter((r) => r.id !== routeId);
     if (this.activeRouteId === routeId) {
       this.activeRouteId = this.routes.length > 0 ? this.routes[0].id : null;
       this.activeWaypointIndex = 0;
@@ -280,7 +317,7 @@ class RoutePlanner {
   }
 
   setActiveRoute(routeId) {
-    const r = this.routes.find(rt => rt.id === routeId);
+    const r = this.routes.find((rt) => rt.id === routeId);
     if (r) {
       this.activeRouteId = routeId;
       this.activeWaypointIndex = 0;
@@ -291,7 +328,7 @@ class RoutePlanner {
   }
 
   advanceActiveWaypoint() {
-    const r = this.routes.find(rt => rt.id === this.activeRouteId);
+    const r = this.routes.find((rt) => rt.id === this.activeRouteId);
     if (!r) return false;
 
     if (this.activeWaypointIndex < r.points.length - 1) {
@@ -313,9 +350,10 @@ class RoutePlanner {
       const p1 = route.points[i];
       const p2 = route.points[i + 1];
 
-      const leg = route.navType === 'great_circle'
-        ? RoutePlanner.greatCircleDistanceAndBearing(p1.lat, p1.lon, p2.lat, p2.lon)
-        : RoutePlanner.rhumbDistanceAndBearing(p1.lat, p1.lon, p2.lat, p2.lon);
+      const leg =
+        route.navType === 'great_circle'
+          ? RoutePlanner.greatCircleDistanceAndBearing(p1.lat, p1.lon, p2.lat, p2.lon)
+          : RoutePlanner.rhumbDistanceAndBearing(p1.lat, p1.lon, p2.lat, p2.lon);
 
       totalDist += leg.distanceNm;
       route.legs.push({
@@ -342,12 +380,12 @@ class RoutePlanner {
   // =========================================================
 
   /**
-   * تصدير مسار أو جميع المسارات والنقاط بصيغة GPX قياسية معتمدة ملاحياً
+   * تصدير مسار أو جميع المسارات والنقاط بصيغة GPX قياسية معتمدة ملاحياً.
+   * @param {string|null} routeId تصدير مسار محدد أو الكل
+   * @param {Array<{lat:number,lon:number,ts?:number}>} [tracks] نقاط أثر الإبحار (trk)
    */
-  exportToGPX(routeId = null) {
-    const routesToExport = routeId 
-      ? this.routes.filter(r => r.id === routeId)
-      : this.routes;
+  exportToGPX(routeId = null, tracks = null) {
+    const routesToExport = routeId ? this.routes.filter((r) => r.id === routeId) : this.routes;
 
     let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
     xml += `<gpx version="1.1" creator="ARN Marine Navigator - ARN Technology" xmlns="http://www.topografix.com/GPX/1/1">\n`;
@@ -377,6 +415,19 @@ class RoutePlanner {
         xml += `    </rtept>\n`;
       }
       xml += `  </rte>\n`;
+    }
+
+    // 3. تصدير أثر الإبحار الحي كمسار مستمر <trk><trkseg>
+    if (Array.isArray(tracks) && tracks.length > 1) {
+      xml += `  <trk>\n`;
+      xml += `    <name>${escapeXml('Vessel Track Log')}</name>\n`;
+      xml += `    <trkseg>\n`;
+      for (const tp of tracks) {
+        if (!RoutePlanner.isValidLatLon(tp.lat, tp.lon)) continue;
+        const timeAttr = tp.ts ? `\n      <time>${new Date(tp.ts).toISOString()}</time>` : '';
+        xml += `      <trkpt lat="${Number(tp.lat)}" lon="${Number(tp.lon)}">${timeAttr}\n      </trkpt>\n`;
+      }
+      xml += `    </trkseg>\n  </trk>\n`;
     }
 
     xml += `</gpx>\n`;
@@ -427,7 +478,7 @@ class RoutePlanner {
           const ptName = ptNameMatch ? unescapeXml(ptNameMatch[1].trim()) : `P${pIndex}`;
 
           points.push({
-            id: 'pt_' + Date.now() + '_' + pIndex,
+            id: RoutePlanner.newId('pt'),
             name: ptName,
             lat,
             lon
@@ -441,11 +492,49 @@ class RoutePlanner {
         }
       }
 
+      // 3. استخراج مسارات الأثر <trk><trkseg><trkpt> وتحويلها لمسارات ملاحية
+      const trkRegex = /<trk(?:\s[^>]*)?>([\s\S]*?)<\/trk>/gi;
+      let trkMatch;
+      let importedTracksCount = 0;
+      while ((trkMatch = trkRegex.exec(gpxContent)) !== null) {
+        const trkInner = trkMatch[1];
+        const nameMatch = /<name>([^<]+)<\/name>/i.exec(trkInner);
+        const trkName = nameMatch ? unescapeXml(nameMatch[1].trim()) : `أثر مستورد ${importedTracksCount + 1}`;
+
+        const points = [];
+        const ptRegex = /<trkpt\s+lat="([^"]+)"\s+lon="([^"]+)"[^>]*>([\s\S]*?)<\/trkpt>/gi;
+        let ptMatch;
+        let pIndex = 1;
+        while ((ptMatch = ptRegex.exec(trkInner)) !== null) {
+          const lat = parseFloat(ptMatch[1]);
+          const lon = parseFloat(ptMatch[2]);
+          if (RoutePlanner.isValidLatLon(lat, lon)) {
+            points.push({
+              id: RoutePlanner.newId('pt'),
+              name: `T${pIndex}`,
+              lat,
+              lon
+            });
+            pIndex++;
+          }
+        }
+
+        if (points.length >= 2) {
+          const trkRoute = this.createRoute(trkName, points, 'rhumb');
+          trkRoute.navType = 'track';
+          this._recalculateRoute(trkRoute);
+          this.saveToDisk();
+          importedRoutes.push(trkRoute);
+          importedTracksCount++;
+        }
+      }
+
       this.saveToDisk();
       return {
         success: true,
         importedRoutesCount: importedRoutes.length,
-        importedWaypointsCount: importedWaypoints.length
+        importedWaypointsCount: importedWaypoints.length,
+        importedTracksCount
       };
     } catch (err) {
       console.error('[RoutePlanner] GPX Import failed:', err.message);
@@ -455,7 +544,7 @@ class RoutePlanner {
 
   getActiveSteering(vesselLat, vesselLon, sog, cog) {
     if (!this.activeRouteId || vesselLat === null || vesselLon === null) return null;
-    const route = this.routes.find(r => r.id === this.activeRouteId);
+    const route = this.routes.find((r) => r.id === this.activeRouteId);
     if (!route || !route.points || route.points.length === 0) return null;
 
     const targetIdx = Math.min(this.activeWaypointIndex, route.points.length - 1);
@@ -470,8 +559,14 @@ class RoutePlanner {
     }
 
     const steering = RoutePlanner.calculateSteering(
-      vesselLat, vesselLon, sog || 0, cog || 0,
-      startLat, startLon, targetWpt.lat, targetWpt.lon
+      vesselLat,
+      vesselLon,
+      sog || 0,
+      cog || 0,
+      startLat,
+      startLon,
+      targetWpt.lat,
+      targetWpt.lon
     );
 
     return {
@@ -489,24 +584,30 @@ class RoutePlanner {
 
 function escapeXml(unsafe) {
   if (!unsafe) return '';
-  return String(unsafe).replace(/[<>&'"]/g, c => {
+  return String(unsafe).replace(/[<>&'"]/g, (c) => {
     switch (c) {
-      case '<': return '&lt;';
-      case '>': return '&gt;';
-      case '&': return '&amp;';
-      case '\'': return '&apos;';
-      case '"': return '&quot;';
+      case '<':
+        return '&lt;';
+      case '>':
+        return '&gt;';
+      case '&':
+        return '&amp;';
+      case "'":
+        return '&apos;';
+      case '"':
+        return '&quot;';
     }
   });
 }
 
 function unescapeXml(safe) {
   if (!safe) return '';
-  return safe.replace(/&lt;/g, '<')
-             .replace(/&gt;/g, '>')
-             .replace(/&amp;/g, '&')
-             .replace(/&apos;/g, '\'')
-             .replace(/&quot;/g, '"');
+  return safe
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&apos;/g, "'")
+    .replace(/&quot;/g, '"');
 }
 
 module.exports = RoutePlanner;

@@ -10,12 +10,18 @@ const BSBDecoder = require('./bsb_decoder');
 
 class ChartScanner {
   constructor() {
+    // الصيغ التي يملك التطبيق مفسرات فعلية لها فقط
     this.supportedExtensions = new Set([
-      '.000', '.001', '.002', '.003', // S-57 ENC Vector Cells
-      '.bsb', '.kap',                 // BSB/KAP Raster Nautical Charts
-      '.mbtiles',                     // Offline Map Tiles SQLite
-      '.tif', '.tiff', '.geotiff'     // GeoTIFF Marine Charts
+      '.000',
+      '.001',
+      '.002',
+      '.003', // S-57 ENC Vector Cells
+      '.bsb',
+      '.kap', // BSB/KAP Raster Nautical Charts
+      '.mbtiles' // Offline Map Tiles SQLite
     ]);
+    // صيغ مكتشفة للعرض فقط بدون مفسر بعد (لا تُفهرس كخرائط جاهزة)
+    this.unsupportedExtensions = new Set(['.tif', '.tiff', '.geotiff']);
   }
 
   /**
@@ -57,12 +63,15 @@ class ChartScanner {
     }
 
     // التحقق أولاً من وجود مجلد CM93 أو ملفات C-MAP العالمية
-    const isCm93Folder = entries.some(e => e.isDirectory() && e.name.toUpperCase() === 'CM93') ||
-                         currentPath.toUpperCase().endsWith('CM93') ||
-                         entries.some(e => e.isFile() && (e.name.toUpperCase().endsWith('.EXD') || e.name.toUpperCase() === 'CHRLIST.BIN'));
+    const isCm93Folder =
+      entries.some((e) => e.isDirectory() && e.name.toUpperCase() === 'CM93') ||
+      currentPath.toUpperCase().endsWith('CM93') ||
+      entries.some(
+        (e) => e.isFile() && (e.name.toUpperCase().endsWith('.EXD') || e.name.toUpperCase() === 'CHRLIST.BIN')
+      );
 
-    if (isCm93Folder && !results.charts.some(c => c.type === 'CM93' && c.path === currentPath)) {
-      const exdFiles = entries.filter(e => e.isFile() && e.name.toUpperCase().endsWith('.EXD')).map(e => e.name);
+    if (isCm93Folder && !results.charts.some((c) => c.type === 'CM93' && c.path === currentPath)) {
+      const exdFiles = entries.filter((e) => e.isFile() && e.name.toUpperCase().endsWith('.EXD')).map((e) => e.name);
       let editionDate = '2013-05-01';
       if (exdFiles.length > 0) {
         exdFiles.sort().reverse();
@@ -72,7 +81,7 @@ class ChartScanner {
         }
       }
 
-      const cellDirs = entries.filter(e => e.isDirectory() && /^\d{8}$/.test(e.name));
+      const cellDirs = entries.filter((e) => e.isDirectory() && /^\d{8}$/.test(e.name));
 
       results.charts.push({
         id: `cm93_global_database`,
@@ -85,6 +94,9 @@ class ChartScanner {
         cellsCount: cellDirs.length || 144,
         edition: editionDate,
         isWorldwide: true,
+        // صادقة: المجلد مكتشف فقط ولا يوجد مفسر EXD حتى الآن
+        status: 'Detected — renderer not implemented yet',
+        renderable: false,
         bounds: [-180, -85, 180, 85]
       });
       results.summary.cm93Count++;
@@ -98,7 +110,7 @@ class ChartScanner {
         await this._crawl(fullPath, currentDepth + 1, maxDepth, results);
       } else if (entry.isFile()) {
         const ext = path.extname(entry.name).toLowerCase();
-        
+
         if (this.supportedExtensions.has(ext)) {
           const chartMeta = this._parseChartMetadata(fullPath, entry.name, ext);
           if (chartMeta) {
@@ -125,7 +137,10 @@ class ChartScanner {
     }
 
     const baseInfo = {
-      id: Buffer.from(filePath).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(-16),
+      id: Buffer.from(filePath)
+        .toString('base64')
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .slice(-16),
       name: fileName,
       fileName: fileName,
       path: filePath,
@@ -148,15 +163,17 @@ class ChartScanner {
           datum: meta.datum || 'WGS84',
           bounds: meta.bounds,
           neatline: meta.neatline,
-          status: 'Ready for Raster Overlay'
+          renderable: true,
+          status: 'Ready for Raster Decode'
         };
-      } catch (err) {
+      } catch {
         return {
           ...baseInfo,
           type: ext === '.bsb' ? 'BSB' : 'KAP',
           chartFamily: 'Raster Nautical',
           scale: 'N/A',
-          status: 'Ready'
+          renderable: false,
+          status: 'Header parse failed'
         };
       }
     }
@@ -169,6 +186,7 @@ class ChartScanner {
         chartFamily: 'Vector ENC',
         edition: ext.replace('.', ''),
         scale: this._inferENCScale(fileName),
+        renderable: true,
         status: 'Ready for Vector Rendering'
       };
     }
@@ -180,17 +198,20 @@ class ChartScanner {
         type: 'MBTiles',
         chartFamily: 'Offline Tile Package',
         format: 'SQLite Tiles',
+        renderable: true,
         status: 'Ready for Tile Stacking'
       };
     }
 
-    // 4. خرائط GeoTIFF
+    // ملاحظة: GeoTIFF لا يمر عبر supportedExtensions بعد (لا مفسر بعد)،
+    // وإن وصل هنا يُوسم بوضوح كغير مدعوم بدل حالة "جاهز" المضللة.
     if (['.tif', '.tiff', '.geotiff'].includes(ext)) {
       return {
         ...baseInfo,
         type: 'GeoTIFF',
         chartFamily: 'Georeferenced Raster',
-        status: 'Ready for GIS Projection'
+        status: 'Unsupported — decoder not implemented',
+        renderable: false
       };
     }
 
@@ -201,12 +222,18 @@ class ChartScanner {
     if (fileName.length >= 8) {
       const bandChar = fileName.charAt(2);
       switch (bandChar) {
-        case '1': return 'Overview (1:1,500,000+)';
-        case '2': return 'General (1:350,000 - 1:1,500,000)';
-        case '3': return 'Coastal (1:90,000 - 1:350,000)';
-        case '4': return 'Approach (1:22,000 - 1:90,000)';
-        case '5': return 'Harbour (1:4,000 - 1:22,000)';
-        case '6': return 'Berthing (< 1:4,000)';
+        case '1':
+          return 'Overview (1:1,500,000+)';
+        case '2':
+          return 'General (1:350,000 - 1:1,500,000)';
+        case '3':
+          return 'Coastal (1:90,000 - 1:350,000)';
+        case '4':
+          return 'Approach (1:22,000 - 1:90,000)';
+        case '5':
+          return 'Harbour (1:4,000 - 1:22,000)';
+        case '6':
+          return 'Berthing (< 1:4,000)';
       }
     }
     return 'Coastal / Standard';

@@ -2,14 +2,13 @@
 
 <div align="center">
 
-
 ### **نظام الملاحة وتخطيط المسارات البحرية التكتيكي المتقدم**
 ### **Advanced Tactical Marine Navigation & Chart Plotter System**
 
 [![License](https://img.shields.io/badge/License-Proprietary-red.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20x64-blue.svg)](https://electronjs.org)
-[![Framework](https://img.shields.io/badge/Stack-Electron%20%7C%20Node.js%20%7C%20Canvas%20WebGL-emerald.svg)](https://nodejs.org)
-[![Offline](https://img.shields.io/badge/100%25-Offline--First-green.svg)](#)
+[![Framework](https://img.shields.io/badge/Stack-Electron%20%7C%20Node.js%20%7C%20Canvas-emerald.svg)](https://nodejs.org)
+[![Tests](https://img.shields.io/badge/Tests-36%20node%3Atest-brightgreen.svg)](#-الاختبارات والجودة)
 
 **تطوير وبرمجة:** عبده رجب نصار  
 **الجهة المالكة والمطورة:** شركة ARN Technology  
@@ -21,111 +20,130 @@
 
 ## 🌊 نظرة عامة (Overview)
 
-**ARN-CPN (ARN Marine Navigator)** هو نظام ملاحة بحري إلكتروني وتخطيط مسارات متقدم تم تصميمه كبديل سيادي وعصري فائق السرعة لبرامج الملاحة البحرية الكلاسيكية (مثل OpenCPN)، مبني بأحدث تقنيات الويب وسطح المكتب (**Electron.js + Canvas / WebGL 2.0 + Node.js**).
+**ARN-CPN (ARN Marine Navigator)** هو نظام ملاحة بحرية إلكتروني وتخطيط مسارات مبني على **Electron.js + Canvas 2D + Node.js**، يعمل دون اتصال بالإنترنت (Offline-First) ويعتمد كلياً على البيانات المخزنة محلياً، مع واجهة تكتيكية داكنة (**Tactical Dark Glassmorphism HUD**) تدعم الرؤية الليلية.
 
-يعمل التطبيق **100% دون أي اتصال بالإنترنت (Offline-First)** لضمان الاستمرارية والاعتمادية التامة في عرض البحار والمحيطات، مع واجهة مستخدم تكتيكية زجاجية داكنة (**Tactical Dark Glassmorphism HUD**) تدعم الرؤية الليلية ومطابقة لأعلى معايير المنظمة الهيدروغرافية الدولية (**IHO S-52 / S-57**).
-
----
-
-## ⚡ أبرز المزايا والمواصفات (Key Features)
-
-### 🗺️ 1. دعم شامل ومتكامل لكافة صيغ الخرائط الملاحية (Marine Charts)
-- **خرائط المتجهات الإلكترونية (S-57 ENC & S-63):** دعم خلايا `.000` و `.001` وفك تشفير ISO/IEC 8211 وعرض طبقات الأعماق (Contours) والمنارات والعلامات الملاحية المضيئة وفق معايير **IHO S-52**.
-- **الخرائط النقطية الممسوحة (Raster Marine Charts - BSB / KAP):** دعم ملفات NOAA و Maptech عبر فك ترميز RLE وإسقاطات Polynomial Affine دقيقة.
-- **خرائط الرقع المحزومة (MBTiles Offline):** قراءة سريعة لملفات SQLite MBTiles محلياً وبمعدل 60 إطاراً في الثانية.
-- **قواعد البيانات العالمية للشواطئ (GSHHS & WVS):** خطوط سواحل تفصيلية متدرجة الدقة مدمجة مسبقاً.
-
-### 📡 2. معالجة الإشارات وأجهزة السفينة (Sensors & NMEA)
-- **NMEA 0183 & NMEA 2000:** قراءة وتحليل تيارات البيانات عبر منافذ السيريال (Serial/COM Ports) أو بروتوكولات الشبكة (UDP / TCP).
-- **أجهزة الملاحة المدعومة:**
-  - GPS / GNSS (GPGGA, GPRMC, GNGLL) لموقع وسرعة وزاوية تحرك السفينة (SOG / COG).
-  - البوصلة الإلكترونية والجايرو (HDG / HDT / HDM).
-  - مسبار الأعماق الصوتي (Echo Sounder - DBT / DPT).
-  - محطات الرصد الجوي وسرعة واتجاه الرياح (WIND - MWV / MWD).
-  - مستشعر تسجيل سرعة السفينة في الماء (Water Speed Log - VHW / VLW).
-
-### 🚢 3. تتبع السفن وتفادي التصادم (AIS Target Tracking & CPA/TCPA)
-- فك ترميز إشارات **AIS (AIVDM / AIVDO)** الفئتين Class A و Class B.
-- محاكاة ورصد الأهداف وحساب مسافة أقرب نقطة اقتراب (**CPA**) والوقت المتبقي حتى الاقتراب (**TCPA**).
-- إنذارات بصرية وصوتية ذكية عند الدخول في نطاقات الخطر المحددة.
-
-### 🧭 4. تخطيط المسارات والرحلات (Route Planning & Waypoints)
-- وضع وتعديل نقاط المسار (Waypoints) ومحاور الإبحار (Legs).
-- حساب المسافات بالزوايا الكبرى (Great Circle) والخطوط الملاحية المنتظمة (Rhumb Line).
-- تتبع مسار الرحلة الفعلي (Track Logging) والتسجيل اللحظي مع إمكانية التصدير والاستيراد (GPX / KML).
-
-### 🌙 5. واجهة بحرية تكتيكية (Marine Tactical Glassmorphism HUD)
-- تبديل فوري بين أوضاع الرؤية: **الوضع الليلي (Night Red HUD)** لحماية تكيف العين في الظلام، **وضع الشفق (Dusk)**، و**الوضع النهاري (Day)**.
-- لوحة بيانات متكاملة لأجهزة القياس (Instrument Dashboard): بوصلة رقمية ثلاثية، مؤشر رياح تكتيكي، ومؤشر أعماق مباشر.
-- حركات وانتقالات فائقة السلاسة وتجربة استخدام عصرية وسريعة.
+> **حالة النضج:** إثبات مفهوم متقدم (Prototype) ذو نواة حسابية مختبرة آلياً، وليس بعد منصة ملاحية معتمدة من هيئات التصنيف. راجع قسم [حدود التنفيذ الحالية](#-حدود-التنفيذ-الحالية-honest-limitations) قبل أي استخدام تشغيلي.
 
 ---
 
-## 🛠️ متطلبات التشغيل والتثبيت (Getting Started)
+## ⚡ المزايا المنفذة فعلاً (Implemented Features)
 
-### المتطلبات الأساسية (Prerequisites)
-- نظام تشغيل **Windows 10 / 11 (64-bit)**
-- بيئة **Node.js 18+** أو أحدث
+### 🗺️ 1. الخرائط الملاحية
+- **خرائط المتجهات S-57 ENC:** فك خلايا `.000`–`.003` بترميز ISO/IEC 8211 (غير حاجب عبر `parseFileAsync`) وعرض طبقات الأعماق والمنارات والعلامات.
+- **الخرائط النقطية BSB / KAP:** مفكك RLE فعلي (`bsb_decoder.js`) مع تحويل إلى صور PNG محلية وعرضها عبر المحرك.
+- **MBTiles:** قراءة رقع SQLite حقيقية عبر sql.js مع كاش LRU (4 قواعد مفتوحة، 256 رقعة/إطار).
+- **GSHHS:** خطوط سواحل عالمية مدمجة مع كاش LRU بسقف 512 خلية.
 
-### خطوات التشغيل والتطوير (Development Setup)
+### 📡 2. المعالجة والأجهزة
+- **NMEA 0183 فقط:** منافذ Serial/COM (SerialPort) وبروتوكولات UDP/TCP، مع رفض الجمل بلا checksum صحيحة.
+- جمل مدعومة: RMC/GGA/GLL/HDG/DBT/DPT/MWV/VHW/VLW وغيرها.
+- **إرسال تسلسلي فعلي للطيار الآلي** (`autopilot_service.js`) عبر قناة `vessel:control` مع سجل إرسال TX.
+
+### 🚢 3. AIS والسلامة
+- فك AIVDM/AIVDO بما في ذلك الرسائل متعددة الأجزاء والنوع 5 (بيانات ثابتة: الاسم/النداء/الأبعاد)، مع كاش متعدد الأجزاء بسق حجمي وتنظيف.
+- حساب CPA/TCPA وإنذارات بصرية وصوتية (Web Audio) ومراقبة المخطاف (Anchor Watch) وطوارئ MOB.
+
+### 🧭 4. المسارات والأثر
+- حسابات Rhumb Line و Great Circle مع تحقق صارم من الإحداثيات.
+- تصدير/استيراد **GPX** كامل (`wpt`/`rte`/`trk`) مع تهريب XML.
+- أثر إبحار دائم في `userData` (`track_store.js`)، سقف 20 ألف نقطة وكتابة مجمّعة.
+
+### 🌦️ 5. الطقس والمغناطيسية والمد
+- مفكك **GRIB الإصدار 1 فقط** (GRIB2 مرفوض صراحة) مع وضع عرض حقيقي ووضع تجريبي موسوم بوضوح.
+- النموذج المغناطيسي **WMM2025** الرسمي مع تحذير انتهاء صلاحية وعرض حالة النموذج في نافذة "حول".
+- مد وجزر من بيانات XTide التوافقية (7464 محطة)، مع وسم `isEstimate` صريح للمحطات المقدّرة وعقد نجاح/فشل موحّدة.
+
+---
+
+## ⚠️ حدود التنفيذ الحالية (Honest Limitations)
+
+| البند | الحالة الفعلية |
+|---|---|
+| **S-63** (الخرائط المشفّرة) | غير منفذ — لا يوجد فك تشفير؛ لا يُعلَن دعمه |
+| **NMEA 2000 / PGN / CAN** | غير منفذ — NMEA 0183 فقط حالياً |
+| **CM93 v2 / GeoTIFF** | يُكتشف المجلد/الملف فقط مع بطاقة وصفية صادقة؛ لا يوجد مفكك عرض (`renderable: false`) |
+| **GRIB2** | مرفوض عمداً برسالة خطأ واضحة (المفكك GRIB1 فقط) |
+| **KML** | غير مدعوم؛ التصدير/الاستيراد GPX فقط |
+| **التوقيع الرقمي** | شهادة ARN الموقعة ذاتياً تكسب ثقة محلية فقط؛ **Smart App Control/SmartScreen** يتطلبان شهادة OV/EV من مرجع عام وسمعة متراكمة |
+| **بيانات المد** | تقديرات توافقية وليست تنبؤات رسمية؛ تُوسَم بـ `isEstimate` دائماً |
+
+---
+
+## 🛠️ التشغيل والتطوير (Getting Started)
+
+### المتطلبات
+- **Windows 10 / 11 (64-bit)** للتشغيل المُحزَّم، أو أي نظام يدعم Electron للتطوير
+- **Node.js 18+** (محدَّد في حقل `engines`)
 
 ```bash
-# استنساخ المستودع
 git clone https://github.com/abdournassar95/ARN-CPN.git
 cd ARN-CPN
-
-# تثبيت الحزم والاعتماديات
 npm install
-
-# تشغيل التطبيق في وضع التطوير
 npm start
 ```
 
-أو تشغيله مباشرة عبر الملف التنفيذي المرفق:
-```cmd
-Run-DesktopApp.bat
+أو عبر المشغّل المرفق على Windows: `Run-DesktopApp.bat`
+
+### أوامر الجودة
+
+```bash
+npm test            # اختبارات الوحدة (node:test) — 36 اختباراً
+npm run lint        # ESLint 9 (flat config)
+npm run format      # Prettier كتابة
+npm run format:check# فحص التنسيق فقط (يستخدمه CI)
 ```
+
+يعمل خط أنابيب **GitHub Actions** على Node 18/20/22: تثبيت، اختبارات، ESLint، فحص Prettier (راجع `.github/workflows/ci.yml`).
 
 ---
 
-## 📁 هيكلية المشروع (Project Structure)
+## 📁 هيكلية المشروع الفعلية (Project Structure)
 
 ```plaintext
 ARN-CPN/
-├── DesktopApp/               # الكود البرمجي الرئيسي للتطبيق
-│   ├── main.js               # المعالج الرئيسي لـ Electron وإدارة النوافذ و IPC
-│   ├── preload.js            # جسر الحماية وعزل السياق (Context Isolation)
-│   ├── renderer/             # واجهة المستخدم الرسومية
-│   │   ├── index.html        # بنية الصفحة والخرائط
-│   │   ├── styles.css        # نظام التصميم الزجاجي الداكن (Marine HUD)
-│   │   ├── app.js            # منطق إدارة الواجهة وأجهزة القياس
-│   │   └── modules/          # المحركات الملاحية والخرائطية
-│   │       ├── chartEngine.js    # محرك عرض الخرائط S-57 / MBTiles / GSHHS
-│   │       ├── s57Parser.js      # محلل وفك ترميز خرائط S-57 ENC ISO 8211
-│   │       ├── nmeaParser.js     # فك وتحليل رسائل NMEA 0183
-│   │       ├── aisTracker.js     # تتبع أهداف AIS وحساب CPA/TCPA
-│   │       ├── instruments.js    # واجهات أجهزة القياس الرقمية والتناظرية
-│   │       ├── routeManager.js   # إدارة وتخطيط المسارات ونقاط الـ Waypoints
-│   │       └── tideManager.js    # الحسابات الهيدروغرافية والمد والجزر
-├── data/                     # قواعد البيانات الملاحية دون اتصال
-│   ├── gshhs/                # خطوط السواحل العالمية GSHHS
-│   ├── s57data/              # قواميس ورموز مواصفات IHO S-57 / S-52
-│   ├── tcdata/               # بيانات المد والجزر التوافقية (Harmonics)
-│   ├── wmm/                  # نموذج المغناطيسية العالمي (World Magnetic Model)
-│   ├── navigation/           # مسارات ونقاط ملاحية مخزنة
-│   └── world_places.json     # قاعدة بيانات الموانئ والمدن البحرية العالمية
-├── assets/                   # الأيقونات والشعارات والوسائط
-├── installer/                # سكربتات حزم التثبيت (Inno Setup)
-├── build_and_sign.ps1        # سكربت التجميع والتوقيع الرقمي المعتمد
-├── MASTER_PLAN.md            # الخطة المعمارية الشاملة والمواصفات التفصيلية
-└── LICENSE                   # وثيقة ترخيص الملكية الفكرية لشركة ARN Technology
+├── DesktopApp/
+│   ├── main.js               # عملية Electron الرئيسية وكل قنوات IPC ودورة حياة الموارد
+│   ├── preload.js            # جسر contextBridge معزول (contextIsolation)
+│   ├── nmea_service.js       # محلل NMEA 0183/AIS (checksum، multipart بسقف)
+│   ├── autopilot_service.js  # إرسال أوامر الطيار الآلي التسلسلي
+│   ├── route_planner.js      # Rhumb/GC + GPX (wpt/rte/trk) + تخزين userData
+│   ├── track_store.js        # أثر الإبحار الدائم (سقف 20000 نقطة)
+│   ├── s57_decoder.js        # فك S-57 ENC / ISO 8211 (واجهات async)
+│   ├── bsb_decoder.js        # فك BSB/KAP RLE وتحويل PNG محلي
+│   ├── mbtiles_reader.js     # قارئ MBTiles (sql.js) مع كاش LRU
+│   ├── grib_decoder.js       # محلل GRIB1 (يرفض GRIB2)
+│   ├── gshhs_provider.js     # سواحل GSHHS مع كاش محدود
+│   ├── tides_engine.js       # مد وجزر XTide التوافقي
+│   ├── wmm_engine.js         # النموذج المغناطيسي WMM2025
+│   ├── chart_scanner.js      # مسح المجلدات بوسوم renderable/status صادقة
+│   ├── settings_manager.js   # إعدادات userData (لا كتابة في مجلد التثبيت)
+│   └── renderer/
+│       ├── index.html        # الواجهة + CSP صارمة
+│       ├── styles.css        # تصميم HUD داكن
+│       ├── fonts.css         # خطوط محلية (Cairo/JetBrains Mono)
+│       ├── app.js            # منطق الواجهة وتهريب كل المخرجات الخارجية
+│       ├── chart_engine.js   # محرك Canvas: MBTiles/BSB/S-57/GSHHS/الأثر
+│       └── grib_layer.js     # طبقة GRIB (وضع real موسوم مقابل demo)
+├── tests/                    # 36 اختبار node:test (routing/nmea/wmm/tides/bsb/grib/track)
+├── data/                     # بيانات أوفلاين: gshhs/ s57data/ tcdata/ wmm/
+├── assets/                   # أيقونات وخطوط محلية
+├── cert/                     # الشهادة العامة (مرجعية — لا تُحقن في الجذر)
+├── installer/                # سكربت Inno Setup 7 (تثبيت per-user بلا admin)
+├── build_and_sign.ps1        # بناء + توقيع SHA-256/RFC-3161 (اختياري -TrustPublisher)
+├── eslint.config.js          # ESLint 9 Flat Config
+└── package.json
 ```
+
+> ملاحظة: بيانات المستخدم (الإعدادات، المسارات، الأثر) تُكتب في مجلد `userData` الخاص بـ Electron، وليس داخل مجلد التثبيت — لذلك يعمل التثبيت per-user بلا صلاحيات مسؤول.
 
 ---
 
 ## 🔒 الأمان والتوقيع الرقمي (Code Signing & Security)
 
-جميع إصدارات التطبيق التنفيذية وحزم التثبيت يتم توقيعها رقمياً بشهادة معتمدة مشفرة بخوارزمية SHA-256 مع طابع زمني رسمي وفق معيار **RFC-3161** لضمان أعلى مستويات الأمان والموثوقية والتوافق التام مع **Windows 11 Smart App Control**.
+- **CSP صارمة** في `index.html` (`default-src 'self'`, `object-src 'none'`) مع خطوط محلية بالكامل — لا أي طلب خارجي وقت التشغيل.
+- **عزل السياق** مفعّل؛ كل بيانات AIS/GPX الخارجية تُهرَّب قبل الإدراج (`esc()`/`textContent`).
+- المثبّت **per-user بلا UAC** ولا يحقن أي شهادة جذر؛ توثيق الناشر في `CurrentUser\TrustedPublisher` مهمة اختيارية غير مفعّلة افتراضياً وتُزال عند إلغاء التثبيت.
+- شهادة التوقيع الحالية **موقعة ذاتياً** (SHA-256 مع ختم زمني RFC-3161 عند توفّر الشبكة وقت البناء). هي لا تكسب ثقة SmartScreen على أجهزة نظيفة؛ الترقية لشهادة OV/EV من مرجع شهادات عام بند مستقبلي صريح.
 
 ---
 

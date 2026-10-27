@@ -12,7 +12,7 @@ class TidesEngine {
     this.tcDataDir = tcDataDir || path.join(__dirname, '..', 'data', 'tcdata');
     this.indexPath = path.join(this.tcDataDir, 'HARMONIC.IDX');
     this.harmonicPath = path.join(this.tcDataDir, 'HARMONIC');
-    
+
     this.stations = [];
     this.isReady = false;
 
@@ -31,7 +31,14 @@ class TidesEngine {
 
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
-        if (!line || line.startsWith('#') || line.startsWith('REGION') || line.startsWith('COUNTRY') || line.startsWith('STATE') || line.startsWith('XREF')) {
+        if (
+          !line ||
+          line.startsWith('#') ||
+          line.startsWith('REGION') ||
+          line.startsWith('COUNTRY') ||
+          line.startsWith('STATE') ||
+          line.startsWith('XREF')
+        ) {
           continue;
         }
 
@@ -49,8 +56,8 @@ class TidesEngine {
 
             if (!isNaN(lat) && !isNaN(lon)) {
               this.stations.push({
-                type: (typeChar === 'T' || typeChar === 't') ? 'Tide' : 'Current',
-                isSubordinate: (typeChar === 't' || typeChar === 'c'),
+                type: typeChar === 'T' || typeChar === 't' ? 'Tide' : 'Current',
+                isSubordinate: typeChar === 't' || typeChar === 'c',
                 code: codePart,
                 lat,
                 lon,
@@ -78,10 +85,7 @@ class TidesEngine {
     const dLon = ((lon2 - lon1) * Math.PI) / 180;
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
+      Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }
@@ -124,36 +128,77 @@ class TidesEngine {
   }
 
   /**
-   * حساب منحنى المد والجزر التوافقي لموقع ومحطة محددة لتاريخ معين
+   * تحويل إزاحة المنطقة الزمنية بصيغة XTide (مثل "-3:30") إلى ساعات عشرية
+   */
+  _parseTimezoneOffset(tz) {
+    if (!tz || typeof tz !== 'string') return 0;
+    const m = /^(-?\d+):(\d{1,2})$/.exec(tz.trim());
+    if (!m) {
+      const n = parseFloat(tz);
+      return isNaN(n) ? 0 : n;
+    }
+    const sign = m[1].startsWith('-') ? -1 : 1;
+    const hours = Math.abs(parseInt(m[1], 10));
+    const minutes = parseInt(m[2], 10);
+    return sign * (hours + minutes / 60);
+  }
+
+  /**
+   * حساب منحنى المد والجزر لمحطة محددة وتاريخ معين.
+   *
+   * تنبيه مصداقية: هذا المحرك يقرأ فهرس المحطات XTide (HARMONIC.IDX) فقط،
+   * لكنه لا يفك ملف الثوابت التوافقية الثنائي (HARMONIC) بعد. لذلك المنحنى
+   * تقدير فيزيائي عام (تراكب مركبتَي M2 و S2 بسعة مُخمّنة من خط العرض)
+   * وليس تنبؤاً توافقياً رسمياً — وتُوسَم النتيجة صراحةً بذلك.
    */
   predictTide(stationName, date = new Date()) {
-    const station = this.stations.find(s => s.name === stationName) || this.stations[0];
-    if (!station) return null;
+    if (!this.isReady || this.stations.length === 0) {
+      return {
+        ok: false,
+        error: 'NO_INDEX',
+        message: 'قاعدة بيانات محطات المد والجزر غير متاحة.'
+      };
+    }
 
-    // محاكاة رياضية مبنية على المكونات التوافقية M2 (12.42h lunar semidiurnal) و S2 (12.0h solar semidiurnal)
-    // وسعة المد المحلية المستنبطة من الموقع الجغرافي
+    const station = this.stations.find((s) => s.name === stationName);
+    // لا يوجد ارتداد صامت لمحطة عشوائية بعد الآن — إرجاع خطأ واضح
+    if (!station) {
+      return {
+        ok: false,
+        error: 'STATION_NOT_FOUND',
+        message: `المحطة "${stationName}" غير موجودة في الفهرس — لا يمكن توليد تنبؤ موثوق.`
+      };
+    }
+
+    // نموذج تقديري: M2 (12.42h قمري) + S2 (12.0h شمسي) بسعة مُخمّنة جغرافياً
     const latRad = (station.lat * Math.PI) / 180;
-    const baseAmplitude = 1.2 + 0.8 * Math.cos(latRad); // متوسط نطاق المد
-    const z0 = 1.5; // Mean Sea Level
+    const baseAmplitude = 1.2 + 0.8 * Math.cos(latRad); // نطاق مد تقديري
+    const z0 = 1.5; // متوسط مستوى سطح البحر التقديري
 
     const startTime = new Date(date);
     startTime.setHours(0, 0, 0, 0);
 
+    // إزاحة المنطقة الزمنية للمحطة لعرض الأوقات المحلية
+    const tzOffsetHours = this._parseTimezoneOffset(station.tz);
+
     const curvePoints = [];
-    let highTides = [];
-    let lowTides = [];
+    const highTides = [];
+    const lowTides = [];
     let prevHeight = null;
     let prevDiff = null;
 
-    // حساب الارتفاع كل 15 دقيقة على مدار 24 ساعة (96 نقطة)
+    // حساب الارتفاع كل 15 دقيقة على مدار 24 ساعة (97 نقطة)
     for (let m = 0; m <= 24 * 60; m += 15) {
       const tHours = m / 60;
       const tRadM2 = (tHours / 12.42) * (2 * Math.PI);
-      const tRadS2 = (tHours / 12.00) * (2 * Math.PI);
+      const tRadS2 = (tHours / 12.0) * (2 * Math.PI);
 
-      // صيغة التراكب التوافقي (Harmonic Superposition)
-      const height = z0 + (baseAmplitude * 0.7 * Math.cos(tRadM2)) + (baseAmplitude * 0.3 * Math.cos(tRadS2 + 0.5));
-      const timeStr = `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+      // صيغة التراكب التوافقي التقديرية (Estimated Harmonic Superposition)
+      const height = z0 + baseAmplitude * 0.7 * Math.cos(tRadM2) + baseAmplitude * 0.3 * Math.cos(tRadS2 + 0.5);
+
+      // وقت المحطة المحلي = توقيت UTC + إزاحة المنطقة
+      const localMinutes = (m + tzOffsetHours * 60 + 24 * 60) % (24 * 60);
+      const timeStr = `${String(Math.floor(localMinutes / 60)).padStart(2, '0')}:${String(Math.round(localMinutes % 60)).padStart(2, '0')}`;
 
       curvePoints.push({
         time: timeStr,
@@ -164,12 +209,9 @@ class TidesEngine {
       if (prevHeight !== null) {
         const diff = height - prevHeight;
         if (prevDiff !== null) {
-          // قمة (High Tide)
           if (prevDiff > 0 && diff <= 0) {
             highTides.push({ time: timeStr, height: Math.round(height * 100) / 100 });
-          }
-          // قاع (Low Tide)
-          else if (prevDiff < 0 && diff >= 0) {
+          } else if (prevDiff < 0 && diff >= 0) {
             lowTides.push({ time: timeStr, height: Math.round(height * 100) / 100 });
           }
         }
@@ -179,12 +221,19 @@ class TidesEngine {
     }
 
     return {
+      ok: true,
       station: station.name,
       type: station.type,
       lat: station.lat,
       lon: station.lon,
+      timezone: station.tz,
       date: startTime.toISOString().split('T')[0],
       unit: 'Meters',
+      // وسوم المصداقية — يجب أن تظهر في الواجهة
+      isEstimate: true,
+      method: 'estimated-m2-s2-superposition',
+      confidenceWarning:
+        'تقدير فيزيائي عام وليس تنبؤاً توافقياً رسمياً من ملف HARMONIC — يُمنع الاعتماد عليه للملاحة الحرجة.',
       highTides,
       lowTides,
       curve: curvePoints

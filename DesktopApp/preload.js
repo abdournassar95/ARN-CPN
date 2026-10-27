@@ -13,8 +13,10 @@ contextBridge.exposeInMainWorld('api', {
   getGshhsCoastlines: (bounds) => ipcRenderer.invoke('charts:get-gshhs', bounds),
   openS57Chart: (path) => ipcRenderer.invoke('charts:open-s57', path),
   openBsbChart: (path) => ipcRenderer.invoke('charts:open-bsb', path),
+  openBsbImage: (path) => ipcRenderer.invoke('charts:open-bsb-image', path),
   openMbtiles: (path) => ipcRenderer.invoke('charts:open-mbtiles', path),
   getMbtilesTile: (path, z, x, y) => ipcRenderer.invoke('charts:get-mbtiles-tile', { path, z, x, y }),
+  openGribFile: () => ipcRenderer.invoke('grib:open-file'),
 
   // 2. إدارة وتوقع المد والجزر والتيارات البحرية (XTide Offline Harmonics)
   getNearbyTideStations: (params) => ipcRenderer.invoke('tides:get-nearby', params),
@@ -38,8 +40,14 @@ contextBridge.exposeInMainWorld('api', {
 
   // 5. النموذج المغناطيسي العالمي WMM (NOAA Offline)
   calculateWMM: (lat, lon, date, altKm) => ipcRenderer.invoke('wmm:calculate', { lat, lon, date, altKm }),
+  getWmmModelInfo: () => ipcRenderer.invoke('wmm:model-info'),
   trueToMagnetic: (trueCourse, lat, lon) => ipcRenderer.invoke('wmm:true-to-magnetic', { trueCourse, lat, lon }),
   magneticToTrue: (magCourse, lat, lon) => ipcRenderer.invoke('wmm:magnetic-to-true', { magCourse, lat, lon }),
+
+  // 5b. أثر الإبحار الدائم (Persistent Track Log)
+  getTrack: () => ipcRenderer.invoke('track:get'),
+  clearTrack: () => ipcRenderer.invoke('track:clear'),
+  flushTrack: () => ipcRenderer.invoke('track:flush'),
 
   // 6. مخطط المسارات والنقاط الإرشادية وملفات GPX (Navigation Routes & Waypoints)
   getRouteData: () => ipcRenderer.invoke('routes:get-data'),
@@ -88,6 +96,11 @@ contextBridge.exposeInMainWorld('api', {
     const handler = (event, data) => callback(data);
     ipcRenderer.on('nmea:raw', handler);
     return () => ipcRenderer.removeListener('nmea:raw', handler);
+  },
+  onNmeaOutput: (callback) => {
+    const handler = (event, data) => callback(data);
+    ipcRenderer.on('nmea:out', handler);
+    return () => ipcRenderer.removeListener('nmea:out', handler);
   },
   onConnectionStatus: (callback) => {
     const handler = (event, data) => callback(data);

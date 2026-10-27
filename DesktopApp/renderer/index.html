@@ -2,12 +2,13 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
+  <!-- سياسة أمان محتوى صارمة: لا موارد خارجية إطلاقاً (100% Offline) -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; media-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none';">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ARN Marine Navigator</title>
-  <!-- Google Fonts: Cairo & JetBrains Mono -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- خطوط محلية بالكامل دون أي اتصال إنترنت (Cairo & JetBrains Mono) -->
+  <link rel="stylesheet" href="fonts.css">
   <!-- Styles -->
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -193,6 +194,9 @@
           <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
         </svg>
         <span id="weatherBtnText">الطقس (GRIB)</span>
+      </button>
+      <button class="hud-btn" id="btnLoadGrib" title="تحميل ملف طقس حقيقي بصيغة GRIB1">
+        <span>📂 GRIB1</span>
       </button>
 
       <!-- محدد أوضاع الألوان (Day / Dusk / Night) -->
@@ -528,6 +532,9 @@
         </div>
       </div>
 
+      <!-- وسم مصداقية نموذج التنبؤ (تقديري أم توافقي رسمي) -->
+      <div id="tideEstimateNote" style="display: none; font-size: 11px; color: var(--accent-amber); background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: var(--radius-sm); padding: 7px 10px; margin-bottom: 8px;"></div>
+
       <!-- رسم منحنى المد والجزر على كانفاس مخصص -->
       <canvas class="tide-graph-canvas" id="tideGraphCanvas" width="540" height="180"></canvas>
       <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-muted); margin-top: 4px; font-family: var(--font-mono);">
@@ -644,6 +651,9 @@
         <button class="hud-btn" id="btnImportGpxFile">
           <span>&#8681; استيراد ملف GPX</span>
         </button>
+        <button class="hud-btn" id="btnClearTrack" title="مسح سجل أثر الإبحار الدائم">
+          <span>🗑 مسح الأثر</span>
+        </button>
       </div>
 
       <!-- نموذج إضافة نقطة إرشادية يدوياً (مخفي افتراضياً) -->
@@ -711,9 +721,12 @@
         </div>
         
         <!-- نص حقوق الملكية الصارم -->
-        <div class="copyright-text" style="color: #94a3b8; font-size: 12px; margin-bottom: 16px;">
+        <div class="copyright-text" style="color: #94a3b8; font-size: 12px; margin-bottom: 10px;">
           حقوق النشر (c) 2026 لشركة ARN Technology. جميع الحقوق محفوظة.
         </div>
+
+        <!-- حالة النموذج المغناطيسي المحمّل وصلاحيته -->
+        <div id="wmmModelInfo" style="font-size: 11px; color: var(--text-secondary); background: rgba(56,189,248,0.06); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 8px 10px; margin-bottom: 14px; font-family: var(--font-mono);"></div>
 
         <!-- أزرار السوشيال ميديا الدائرية وفق القواعد -->
         <div class="social-buttons-container">

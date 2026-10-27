@@ -4,9 +4,31 @@
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // تهريب أي نص قادم من مصادر خارجية (AIS/GPX/ملفات/شبكة) قبل إدراجه في HTML
+  // لمنع حقن DOM، وكل القيم الرقمية تُمرر عبر Number/تنسيق آمن أيضاً.
+  function esc(value) {
+    if (value === null || value === undefined) return '';
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   // 1. تهيئة محرك الخرائط البحرية وعارض الطقس GRIB
   const chartEngine = new window.MarineChartEngine('marineCanvas');
   const weatherLayer = new window.GribWeatherLayer(chartEngine, '.map-viewport');
+
+  // حقن مزود رقع MBTiles عبر جسر IPC (مع عزل الأخطاء)
+  if (window.api && window.api.getMbtilesTile) {
+    chartEngine.setTileProvider((tilePath, z, x, y) =>
+      window.api
+        .getMbtilesTile(tilePath, z, x, y)
+        .then((res) => (res && res.success ? res.dataUrl : null))
+        .catch(() => null)
+    );
+  }
 
   // عناصر أزرار التكبير والتصغير التكتيكية (Zoom Controls) وعارض الطقس
   const btnZoomIn = document.getElementById('btnZoomIn');
@@ -47,7 +69,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (currentVesselState && currentVesselState.lat !== null) {
         chartEngine.centerOn(currentVesselState.lat, currentVesselState.lon);
       } else {
-        chartEngine.centerOn(27.8340, 34.3210);
+        chartEngine.centerOn(27.834, 34.321);
       }
       updateZoomBadge();
     });
@@ -64,6 +86,39 @@ document.addEventListener('DOMContentLoaded', async () => {
         btnToggleWeather.classList.remove('active');
         btnToggleWeather.style.borderColor = 'var(--border-subtle)';
         weatherBtnText.textContent = 'الطقس (GRIB)';
+      }
+    });
+  }
+
+  // تحميل ملف طقس GRIB1 حقيقي (بديل المحاكاة التجريبية)
+  const btnLoadGrib = document.getElementById('btnLoadGrib');
+  if (btnLoadGrib && window.api && window.api.openGribFile) {
+    btnLoadGrib.addEventListener('click', async () => {
+      try {
+        const res = await window.api.openGribFile();
+        if (!res || res.canceled) return;
+        if (!res.success) {
+          alert(`تعذر تحليل ملف GRIB: ${res.error}`);
+          return;
+        }
+        const load = weatherLayer.loadGrids(res.grids, res.fileName);
+        if (!load.ok) {
+          alert(load.error);
+          return;
+        }
+        // تفعيل العرض تلقائياً عند نجاح التحميل
+        if (!weatherLayer.enabled) {
+          weatherLayer.toggle(true);
+          btnToggleWeather.classList.add('active');
+          btnToggleWeather.style.borderColor = 'var(--accent-cyan)';
+          weatherBtnText.textContent = 'الطقس [GRIB حقيقي]';
+        } else {
+          weatherBtnText.textContent = 'الطقس [GRIB حقيقي]';
+        }
+        btnLoadGrib.style.borderColor = 'var(--accent-green)';
+        alert(`تم تحميل ${res.fileName}: شبكة ${load.ni}×${load.nj} (UGRD/VGRD).`);
+      } catch (err) {
+        alert(`فشل تحميل GRIB: ${err.message}`);
       }
     });
   }
@@ -237,12 +292,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       osc.type = type;
       osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
       gain.gain.setValueAtTime(gainVal, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + (durationMs / 1000));
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + durationMs / 1000);
       osc.connect(gain);
       gain.connect(audioCtx.destination);
       osc.start();
-      osc.stop(audioCtx.currentTime + (durationMs / 1000));
-    } catch (e) {}
+      osc.stop(audioCtx.currentTime + durationMs / 1000);
+    } catch {}
   }
 
   function playCpaCollisionAlarm() {
@@ -301,7 +356,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         elCOG.textContent = `${Math.round(v.cog || 0)}°`;
         elHDG.textContent = `${Math.round(v.heading || 0)}°`;
         elDepth.textContent = v.depth !== null ? v.depth.toFixed(1) : '--.-';
-        elWind.textContent = v.windSpeed !== null ? `${v.windSpeed.toFixed(1)} Kts @ ${String(Math.round(v.windAngle || 0)).padStart(3, '0')}°` : '--.-';
+        elWind.textContent =
+          v.windSpeed !== null
+            ? `${v.windSpeed.toFixed(1)} Kts @ ${String(Math.round(v.windAngle || 0)).padStart(3, '0')}°`
+            : '--.-';
 
         // تحديث قيمة الانحراف المغناطيسي WMM الحقيقي
         if (elVar) {
@@ -354,19 +412,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         btnAnchor.classList.remove('active');
         btnAnchor.querySelector('span').textContent = 'المخطاف';
       }
+      // كشف حالة الإنذار لاستخدامها في لافتة التنبيه أدناه
+      const anchorAlarmActive = !!(data.anchorStatus && data.anchorStatus.alarm);
+      const anchorRadiusM = data.anchorStatus ? data.anchorStatus.radius : 0;
 
       // فحص أخطار التصادم CPA وانحراف المخطاف وطوارئ MOB
-      const dangerousAis = (data.aisTargets || []).find(t => t.status === 'DANGER');
+      const dangerousAis = (data.aisTargets || []).find((t) => t.status === 'DANGER');
       if (dangerousAis) {
         triggerAlarmBanner(
           'إنذار تصادم وشيك (CPA Collision Danger)!',
           `سفينة ${dangerousAis.name} تقترب: مسافة CPA = ${dangerousAis.cpa} NM خلال ${dangerousAis.tcpa} دقيقة`,
           'CPA'
         );
-      } else if (data.anchorStatus && data.anchorStatus.driftAlarm) {
+      } else if (anchorAlarmActive) {
         triggerAlarmBanner(
           'إنذار انحراف المخطاف (Anchor Drift Alarm)!',
-          `انحرفت السفينة بمقدار ${data.anchorStatus.driftMeters}م خارج دائرة الأمان (${data.anchorStatus.radiusMeters}م)`,
+          `انحرفت السفينة بمقدار ${data.anchorStatus.driftMeters}م خارج دائرة الأمان (${anchorRadiusM}م)`,
           'ANCHOR'
         );
       } else if (v.mobActive) {
@@ -395,23 +456,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   function updateAISTable(targets) {
     if (!targets || targets.length === 0) {
       aisCountBadge.textContent = '0 أهداف';
-      aisTableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 16px;">لا توجد أهداف AIS مكتشفة حالياً (في انتظار إشارات الراديو الحقيقية)</td></tr>';
+      aisTableBody.innerHTML =
+        '<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 16px;">لا توجد أهداف AIS مكتشفة حالياً (في انتظار إشارات الراديو الحقيقية)</td></tr>';
       return;
     }
 
     aisCountBadge.textContent = `${targets.length} أهداف`;
     aisTableBody.innerHTML = '';
-    targets.forEach(t => {
+    targets.forEach((t) => {
       const tr = document.createElement('tr');
-      const badgeClass = t.status === 'DANGER' ? 'danger' : (t.status === 'WARNING' ? 'warning' : 'safe');
-      const badgeText = t.status === 'DANGER' ? 'خطر داهم' : (t.status === 'WARNING' ? 'تحذير' : 'آمن');
+      const badgeClass = t.status === 'DANGER' ? 'danger' : t.status === 'WARNING' ? 'warning' : 'safe';
+      const badgeText = t.status === 'DANGER' ? 'خطر داهم' : t.status === 'WARNING' ? 'تحذير' : 'آمن';
 
       tr.innerHTML = `
-        <td style="font-weight: 600; color: #fff;">${t.name}</td>
-        <td>${t.distance !== undefined ? t.distance + ' nm' : '---'}</td>
-        <td>${t.cpa !== undefined ? t.cpa + ' nm' : '---'}</td>
-        <td>${t.tcpa !== undefined ? t.tcpa + ' m' : '---'}</td>
-        <td><span class="ais-badge ${badgeClass}">${badgeText}</span></td>
+        <td style="font-weight: 600; color: #fff;">${esc(t.name)}</td>
+        <td>${t.distance !== undefined ? Number(t.distance).toFixed(2) + ' nm' : '---'}</td>
+        <td>${t.cpa !== undefined ? Number(t.cpa).toFixed(2) + ' nm' : '---'}</td>
+        <td>${t.tcpa !== undefined ? Number(t.tcpa).toFixed(1) + ' m' : '---'}</td>
+        <td><span class="ais-badge ${badgeClass}">${esc(badgeText)}</span></td>
       `;
       aisTableBody.appendChild(tr);
     });
@@ -430,13 +492,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         selectSerialPort.innerHTML = '<option value="">لم يتم العثور على منافذ COM / USB</option>';
         return;
       }
-      ports.forEach(p => {
+      ports.forEach((p) => {
         const opt = document.createElement('option');
         opt.value = p.path;
         opt.textContent = `${p.path} ${p.manufacturer ? `(${p.manufacturer})` : ''}`;
         selectSerialPort.appendChild(opt);
       });
-    } catch (e) {
+    } catch {
       selectSerialPort.innerHTML = '<option value="">خطأ أثناء فحص المنافذ</option>';
     }
   }
@@ -468,7 +530,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         connStatusText.textContent = `متصل (${port})`;
         btnConnections.style.borderColor = 'var(--accent-green)';
         if (window.api && window.api.saveLastConnection) {
-          window.api.saveLastConnection('serial', { port, baudRate }, chkAutoReconnect ? chkAutoReconnect.checked : true);
+          window.api.saveLastConnection(
+            'serial',
+            { port, baudRate },
+            chkAutoReconnect ? chkAutoReconnect.checked : true
+          );
         }
       }
     } catch (err) {
@@ -531,6 +597,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // عرض جمل الطيار الآلي الصادرة (TX) بوسوم مميز حتى لا تُخلط بالوارد
+  if (window.api && window.api.onNmeaOutput) {
+    window.api.onNmeaOutput((out) => {
+      if (!out || !out.sentence) return;
+      const tag = out.transmitted ? 'TX ✓' : 'TX (لا منفذ مفتوح)';
+      nmeaLogLines.push(`» ${tag}: ${out.sentence}`);
+      if (nmeaLogLines.length > 150) nmeaLogLines.shift();
+      nmeaConsole.textContent = nmeaLogLines.join('\n');
+      nmeaConsole.scrollTop = nmeaConsole.scrollHeight;
+    });
+  }
+
   btnClearNmeaLog.addEventListener('click', () => {
     nmeaLogLines.length = 0;
     nmeaConsole.textContent = 'تم مسح السجل.';
@@ -557,7 +635,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const stations = await window.api.getTidesInBounds(bounds);
       chartEngine.setTideStations(stations || []);
       populateTideStationsDropdown(stations || []);
-    } catch (err) {}
+    } catch {}
   }
 
   // عند تحريك أو تكبير الخريطة، استعلام خطوط السواحل والمحطات الحقيقية
@@ -582,7 +660,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       selectTideStation.innerHTML = '<option value="">لا توجد محطات مد في النطاق الحالي</option>';
       return;
     }
-    stations.forEach(s => {
+    stations.forEach((s) => {
       const opt = document.createElement('option');
       opt.value = s.name;
       opt.textContent = `[${s.type === 'Tide' ? 'مد' : 'تيار'}] ${s.name} (${s.tz})`;
@@ -602,7 +680,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!window.api || !window.api.predictTide) return;
     try {
       const pred = await window.api.predictTide({ stationName });
-      if (!pred) return;
+      const noteEl = document.getElementById('tideEstimateNote');
+
+      // المحطة غير موجودة أو الفهرس غير متاح — لا توجد تنبؤات مضللة
+      if (!pred || pred.ok === false) {
+        tideHighVal.textContent = '--.- m';
+        tideLowVal.textContent = '--.- m';
+        const ctx = tideGraphCanvas.getContext('2d');
+        ctx.clearRect(0, 0, tideGraphCanvas.width, tideGraphCanvas.height);
+        if (noteEl) {
+          noteEl.style.display = 'block';
+          noteEl.textContent = pred && pred.message ? pred.message : 'تعذر توليد التنبؤ لهذه المحطة.';
+        }
+        return;
+      }
+
+      if (noteEl) {
+        noteEl.style.display = 'block';
+        noteEl.textContent = pred.isEstimate
+          ? '⚠ تقدير فيزيائي عام (مركبتا M2/S2) — ليس تنبؤاً توافقياً رسمياً، يُمنع الاعتماد عليه للملاحة الحرجة.'
+          : 'تنبؤ توافقي رسمي.';
+      }
 
       // تحديث بطاقات القمة والقاع
       if (pred.highTides && pred.highTides.length > 0) {
@@ -619,7 +717,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // رسم المنحنى على الكانفاس
       drawTideCurve(pred.curve);
-    } catch (err) {}
+    } catch (err) {
+      console.warn('Tide prediction failed:', err);
+    }
   }
 
   function drawTideCurve(points) {
@@ -631,12 +731,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     ctx.clearRect(0, 0, w, h);
 
     // إيجاد القيم الدنيا والعليا
-    let minH = Infinity, maxH = -Infinity;
+    let minH = Infinity,
+      maxH = -Infinity;
     for (const p of points) {
       if (p.height < minH) minH = p.height;
       if (p.height > maxH) maxH = p.height;
     }
-    const range = (maxH - minH) || 1;
+    const range = maxH - minH || 1;
 
     // خط الأساس (Mean Sea Level)
     const midY = h / 2;
@@ -654,7 +755,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     for (let i = 0; i < points.length; i++) {
       const x = (i / (points.length - 1)) * w;
       const normalizedH = (points[i].height - minH) / range;
-      const y = h - 20 - (normalizedH * (h - 40));
+      const y = h - 20 - normalizedH * (h - 40);
 
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
@@ -680,30 +781,31 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ربط خيارات طبقات العرض
   if (chkChartOutlines) {
-    chkChartOutlines.addEventListener('change', (e) => chartEngine.showChartOutlines = e.target.checked);
+    chkChartOutlines.addEventListener('change', (e) => (chartEngine.showChartOutlines = e.target.checked));
   }
   if (chkRasterCharts) {
-    chkRasterCharts.addEventListener('change', (e) => chartEngine.showRasterCharts = e.target.checked);
+    chkRasterCharts.addEventListener('change', (e) => (chartEngine.showRasterCharts = e.target.checked));
   }
   if (chkDepthContours) {
-    chkDepthContours.addEventListener('change', (e) => chartEngine.showDepthContours = e.target.checked);
+    chkDepthContours.addEventListener('change', (e) => (chartEngine.showDepthContours = e.target.checked));
   }
   if (chkNavAids) {
-    chkNavAids.addEventListener('change', (e) => chartEngine.showNavAids = e.target.checked);
+    chkNavAids.addEventListener('change', (e) => (chartEngine.showNavAids = e.target.checked));
   }
   if (chkSoundings) {
-    chkSoundings.addEventListener('change', (e) => chartEngine.showSoundings = e.target.checked);
+    chkSoundings.addEventListener('change', (e) => (chartEngine.showSoundings = e.target.checked));
   }
   if (chkTides) {
-    chkTides.addEventListener('change', (e) => chartEngine.showTides = e.target.checked);
+    chkTides.addEventListener('change', (e) => (chartEngine.showTides = e.target.checked));
   }
   if (sliderRasterOpacity) {
-    sliderRasterOpacity.addEventListener('input', (e) => chartEngine.rasterOpacity = parseFloat(e.target.value));
+    sliderRasterOpacity.addEventListener('input', (e) => (chartEngine.rasterOpacity = parseFloat(e.target.value)));
   }
 
   function renderChartsTable(data) {
     if (!data || !data.charts || data.charts.length === 0) {
-      chartScanResults.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 20px;">لم يتم العثور على خرائط ملاحية في المجلد المحدد.</div>';
+      chartScanResults.innerHTML =
+        '<div style="color: var(--text-muted); text-align: center; padding: 20px;">لم يتم العثور على خرائط ملاحية في المجلد المحدد.</div>';
       return;
     }
 
@@ -725,12 +827,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     data.charts.forEach((c, index) => {
       html += `
-        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer;" class="chart-row" data-index="${index}">
-          <td style="padding: 5px; color: #fff; font-weight: 600;">${c.name}</td>
-          <td style="padding: 5px; color: var(--accent-cyan); font-weight: 700;">${c.type}</td>
-          <td style="padding: 5px; color: var(--text-secondary);">${c.scale || 'N/A'}</td>
+        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer;" class="chart-row" data-index="${Number(index)}">
+          <td style="padding: 5px; color: #fff; font-weight: 600;">${esc(c.name)}</td>
+          <td style="padding: 5px; color: var(--accent-cyan); font-weight: 700;">${esc(c.type)}</td>
+          <td style="padding: 5px; color: var(--text-secondary);">${esc(c.scale || 'N/A')}</td>
           <td style="padding: 5px;">
-            <button class="hud-btn btn-focus-chart" data-index="${index}" style="padding: 2px 8px; font-size: 10px;">تحميل وعرض</button>
+            <button class="hud-btn btn-focus-chart" data-index="${Number(index)}" style="padding: 2px 8px; font-size: 10px;">تحميل وعرض</button>
           </td>
         </tr>
       `;
@@ -740,7 +842,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     chartScanResults.innerHTML = html;
 
     // ربط نقر الخريطة لتحميلها وعرضها
-    chartScanResults.querySelectorAll('.btn-focus-chart').forEach(btn => {
+    chartScanResults.querySelectorAll('.btn-focus-chart').forEach((btn) => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const idx = parseInt(btn.dataset.index, 10);
@@ -749,7 +851,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     });
 
-    chartScanResults.querySelectorAll('.chart-row').forEach(tr => {
+    chartScanResults.querySelectorAll('.chart-row').forEach((tr) => {
       tr.addEventListener('click', async () => {
         const idx = parseInt(tr.dataset.index, 10);
         const chart = data.charts[idx];
@@ -773,21 +875,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
     }
-    // 2. إذا كانت خريطة نقطية BSB أو KAP
-    else if ((chart.type === 'BSB' || chart.type === 'KAP') && window.api && window.api.openBsbChart) {
-      const res = await window.api.openBsbChart(chart.path);
+    // 2. إذا كانت خريطة نقطية BSB أو KAP — فك الصورة الكامل RLE
+    else if ((chart.type === 'BSB' || chart.type === 'KAP') && window.api && window.api.openBsbImage) {
+      const res = await window.api.openBsbImage(chart.path);
       if (res && res.success && res.metadata) {
         chart.bounds = res.metadata.bounds || chart.bounds;
         chart.neatline = res.metadata.neatline || chart.neatline;
         targetBounds = chart.bounds;
+        if (res.dataUrl && chart.bounds) {
+          chartEngine.addRasterImage(chart.path, res.dataUrl, chart.bounds, chart.name);
+        }
+      } else if (res && res.error) {
+        alert(`تعذر فك الصورة النقطية: ${res.error}\nسيُعرض الإطار الوصفي فقط.`);
       }
     }
-    // 3. إذا كانت MBTiles
+    // 3. إذا كانت MBTiles — جلب البيانات الوصفية وبدء بث الرقع
     else if (chart.type === 'MBTiles' && window.api && window.api.openMbtiles) {
       const res = await window.api.openMbtiles(chart.path);
-      if (res && res.success && res.metadata && res.metadata.bounds) {
-        chart.bounds = res.metadata.bounds;
-        targetBounds = chart.bounds;
+      if (res && res.success && res.metadata) {
+        if (res.metadata.bounds && res.metadata.bounds.length === 4) {
+          chart.bounds = res.metadata.bounds;
+          targetBounds = chart.bounds;
+        }
+        chart.metadata = res.metadata; // يستخدمها محرك الرسم لحدود الزوم
       }
     }
     // 4. إذا كانت قاعدة بيانات العالم CM93
@@ -797,7 +907,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         chartEngine.centerOn(currentVesselState.lat, currentVesselState.lon);
       } else {
         // مركز استراتيجي على قناة السويس والبحر الأحمر / الخليج العربي
-        chartEngine.centerOn(27.8340, 34.3210);
+        chartEngine.centerOn(27.834, 34.321);
       }
     }
 
@@ -810,11 +920,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   btnSelectChartFolder.addEventListener('click', async () => {
     if (!window.api) return;
-    chartScanResults.innerHTML = '<div style="color: #38bdf8; text-align: center; padding: 20px;">جاري فحص المجلد والبحث عن الخرائط البحرية...</div>';
+    chartScanResults.innerHTML =
+      '<div style="color: #38bdf8; text-align: center; padding: 20px;">جاري فحص المجلد والبحث عن الخرائط البحرية...</div>';
 
     const folderPath = await window.api.selectChartFolder();
     if (!folderPath) {
-      chartScanResults.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 20px;">تم إلغاء اختيار المجلد.</div>';
+      chartScanResults.innerHTML =
+        '<div style="color: var(--text-muted); text-align: center; padding: 20px;">تم إلغاء اختيار المجلد.</div>';
       return;
     }
 
@@ -828,7 +940,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const res = await window.api.scanCharts(folderPath);
     if (!res.success) {
-      chartScanResults.innerHTML = `<div style="color: #ef4444; padding: 10px;">حدث خطأ أثناء الفحص: ${res.error}</div>`;
+      chartScanResults.innerHTML = `<div style="color: #ef4444; padding: 10px;">حدث خطأ أثناء الفحص: ${esc(res.error)}</div>`;
       return;
     }
 
@@ -836,11 +948,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderChartsTable(res.data);
 
     // إذا كانت قاعدة CM93 العالمية أو مجموعة خرائط، نفتح ونفعل كامل الخرائط فوراً بدون حصر في منطقة واحدة
-    const cm93Chart = res.data.charts.find(c => c.type === 'CM93');
+    const cm93Chart = res.data.charts.find((c) => c.type === 'CM93');
     if (cm93Chart) {
       await openAndFocusChart(cm93Chart);
     } else {
-      const firstValid = res.data.charts.find(c => c.bounds && c.bounds.length >= 4 && (c.bounds[0] !== -180 || c.bounds[2] !== 180));
+      const firstValid = res.data.charts.find(
+        (c) => c.bounds && c.bounds.length >= 4 && (c.bounds[0] !== -180 || c.bounds[2] !== 180)
+      );
       if (firstValid) {
         await openAndFocusChart(firstValid);
       }
@@ -854,12 +968,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         alert('يرجى اختيار مجلد خرائط أولاً لحفظه.');
         return;
       }
-      chartScanResults.innerHTML = '<div style="color: #38bdf8; text-align: center; padding: 20px;">جاري فحص المجلد المحفوظ...</div>';
+      chartScanResults.innerHTML =
+        '<div style="color: #38bdf8; text-align: center; padding: 20px;">جاري فحص المجلد المحفوظ...</div>';
       const res = await window.api.scanCharts(savedDir);
       if (res && res.success) {
         chartEngine.setActiveCharts(res.data.charts);
         renderChartsTable(res.data);
-        const cm93 = res.data.charts.find(c => c.type === 'CM93');
+        const cm93 = res.data.charts.find((c) => c.type === 'CM93');
         if (cm93) await openAndFocusChart(cm93);
       } else {
         chartScanResults.innerHTML = `<div style="color: #ef4444; padding: 10px;">فشل فحص المجلد: ${res ? res.error : ''}</div>`;
@@ -909,15 +1024,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (chkShowCountryNames && s.showCountryNames !== undefined) chkShowCountryNames.checked = s.showCountryNames;
     if (chkShowCityNames && s.showCityNames !== undefined) chkShowCityNames.checked = s.showCityNames;
     if (chkShowSeaNames && s.showSeaNames !== undefined) chkShowSeaNames.checked = s.showSeaNames;
-    if (chkShowDepthContoursModal && s.showDepthContours !== undefined) chkShowDepthContoursModal.checked = s.showDepthContours;
+    if (chkShowDepthContoursModal && s.showDepthContours !== undefined)
+      chkShowDepthContoursModal.checked = s.showDepthContours;
     if (chkShowSoundingsModal && s.showSoundings !== undefined) chkShowSoundingsModal.checked = s.showSoundings;
     if (chkShowNavAidsModal && s.showNavAids !== undefined) chkShowNavAidsModal.checked = s.showNavAids;
     if (chkShowLightSectors && s.showLightSectors !== undefined) chkShowLightSectors.checked = s.showLightSectors;
     if (chkShowHazards && s.showHazards !== undefined) chkShowHazards.checked = s.showHazards;
-    if (chkShowChartOutlinesModal && s.showChartOutlines !== undefined) chkShowChartOutlinesModal.checked = s.showChartOutlines;
+    if (chkShowChartOutlinesModal && s.showChartOutlines !== undefined)
+      chkShowChartOutlinesModal.checked = s.showChartOutlines;
 
     if (s.category) {
-      displayCatButtons.forEach(btn => {
+      displayCatButtons.forEach((btn) => {
         btn.classList.toggle('active', btn.dataset.cat === s.category);
       });
     }
@@ -927,9 +1044,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // مستويات العرض القياسية IHO S-52
-  displayCatButtons.forEach(btn => {
+  displayCatButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
-      displayCatButtons.forEach(b => b.classList.remove('active'));
+      displayCatButtons.forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       const cat = btn.dataset.cat;
       if (cat === 'base') {
@@ -986,7 +1103,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     chkShowLightSectors,
     chkShowHazards,
     chkShowChartOutlinesModal
-  ].forEach(chk => {
+  ].forEach((chk) => {
     if (chk) {
       chk.addEventListener('change', () => {
         chartEngine.setDisplaySettings(getDisplaySettingsFromUI());
@@ -1048,7 +1165,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               selectBaudRate.value = String(lc.serial.baudRate);
             }
             if (chkAutoReconnect) {
-              chkAutoReconnect.checked = (lc.autoConnect !== false);
+              chkAutoReconnect.checked = lc.autoConnect !== false;
             }
             if (lc.autoConnect && lc.type) {
               activeConnLabel.textContent = `جاري استعادة الاتصال التلقائي (${lc.type.toUpperCase()})...`;
@@ -1078,7 +1195,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (lblSavedChartDir) {
           lblSavedChartDir.textContent = data.dir || data.rootPath;
         }
-        const cm93 = data.charts.find(c => c.type === 'CM93');
+        const cm93 = data.charts.find((c) => c.type === 'CM93');
         if (cm93) {
           await openAndFocusChart(cm93);
         }
@@ -1095,18 +1212,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             charts: cached,
             summary: {
               totalCharts: cached.length,
-              cm93Count: cached.filter(c => c.type === 'CM93').length,
+              cm93Count: cached.filter((c) => c.type === 'CM93').length,
               s57Count: 0,
               bsbCount: 0,
               mbtilesCount: 0
             }
           });
-          const cm93 = cached.find(c => c.type === 'CM93');
+          const cm93 = cached.find((c) => c.type === 'CM93');
           if (cm93) {
             await openAndFocusChart(cm93);
           }
         }
-      } catch (e) {}
+      } catch {}
     }
 
     chartEngine.render(currentVesselState, currentAisTargets);
@@ -1211,49 +1328,50 @@ document.addEventListener('DOMContentLoaded', async () => {
     routesListContainer.innerHTML = '';
 
     if (!routes || routes.length === 0) {
-      routesListContainer.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 16px; font-size: 12px;">لا توجد مسارات محفوظة حالياً. اضغط "رسم مسار" للبدء.</div>';
+      routesListContainer.innerHTML =
+        '<div style="color: var(--text-muted); text-align: center; padding: 16px; font-size: 12px;">لا توجد مسارات محفوظة حالياً. اضغط "رسم مسار" للبدء.</div>';
       return;
     }
 
-    routes.forEach(r => {
-      const isActive = (r.id === activeRouteId);
+    routes.forEach((r) => {
+      const isActive = r.id === activeRouteId;
       const div = document.createElement('div');
       div.className = `route-item-card ${isActive ? 'active' : ''}`;
       div.innerHTML = `
         <div>
           <div style="display: flex; align-items: center; gap: 8px;">
-            <strong style="color: #fff; font-size: 13px;">${r.name}</strong>
+            <strong style="color: #fff; font-size: 13px;">${esc(r.name)}</strong>
             ${isActive ? '<span class="badge-active-route">المسار النشط للرحلة</span>' : ''}
           </div>
           <div class="route-meta">
             <span>النقاط: ${r.points ? r.points.length : 0}</span>
-            <span>المسافة الإجمالية: ${r.totalDistanceNm} NM</span>
+            <span>المسافة الإجمالية: ${esc(r.totalDistanceNm)} NM</span>
             <span>النوع: ${r.navType === 'great_circle' ? 'دائرة عظمى' : 'متعامد (Rhumb)'}</span>
           </div>
         </div>
         <div style="display: flex; gap: 6px;">
-          ${!isActive ? `<button class="hud-btn btn-activate-route" data-id="${r.id}" style="padding: 4px 10px; font-size: 11px;">تفعيل التوجيه</button>` : ''}
-          <button class="hud-btn btn-export-single-gpx" data-id="${r.id}" style="padding: 4px 8px; font-size: 11px;">GPX</button>
-          <button class="hud-btn btn-delete-route" data-id="${r.id}" style="padding: 4px 8px; font-size: 11px; color: #ef4444;">حذف</button>
+          ${!isActive ? `<button class="hud-btn btn-activate-route" data-id="${esc(r.id)}" style="padding: 4px 10px; font-size: 11px;">تفعيل التوجيه</button>` : ''}
+          <button class="hud-btn btn-export-single-gpx" data-id="${esc(r.id)}" style="padding: 4px 8px; font-size: 11px;">GPX</button>
+          <button class="hud-btn btn-delete-route" data-id="${esc(r.id)}" style="padding: 4px 8px; font-size: 11px; color: #ef4444;">حذف</button>
         </div>
       `;
       routesListContainer.appendChild(div);
     });
 
-    routesListContainer.querySelectorAll('.btn-activate-route').forEach(btn => {
+    routesListContainer.querySelectorAll('.btn-activate-route').forEach((btn) => {
       btn.addEventListener('click', async () => {
         await window.api.setActiveRoute(btn.dataset.id);
         loadRoutesAndWaypoints();
       });
     });
 
-    routesListContainer.querySelectorAll('.btn-export-single-gpx').forEach(btn => {
+    routesListContainer.querySelectorAll('.btn-export-single-gpx').forEach((btn) => {
       btn.addEventListener('click', async () => {
         await window.api.exportGPX(btn.dataset.id);
       });
     });
 
-    routesListContainer.querySelectorAll('.btn-delete-route').forEach(btn => {
+    routesListContainer.querySelectorAll('.btn-delete-route').forEach((btn) => {
       btn.addEventListener('click', async () => {
         if (confirm('هل أنت متأكد من حذف هذا المسار؟')) {
           await window.api.deleteRoute(btn.dataset.id);
@@ -1269,30 +1387,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     waypointsListContainer.innerHTML = '';
 
     if (!waypoints || waypoints.length === 0) {
-      waypointsListContainer.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 16px; font-size: 12px;">لا توجد نقاط إرشادية منفصلة.</div>';
+      waypointsListContainer.innerHTML =
+        '<div style="color: var(--text-muted); text-align: center; padding: 16px; font-size: 12px;">لا توجد نقاط إرشادية منفصلة.</div>';
       return;
     }
 
-    waypoints.forEach(w => {
+    waypoints.forEach((w) => {
       const div = document.createElement('div');
       div.className = 'route-item-card';
       div.innerHTML = `
         <div>
-          <strong style="color: #fff; font-size: 13px;">${w.name}</strong>
+          <strong style="color: #fff; font-size: 13px;">${esc(w.name)}</strong>
           <div class="route-meta">
-            <span>Lat: ${w.lat.toFixed(4)}°</span>
-            <span>Lon: ${w.lon.toFixed(4)}°</span>
-            ${w.desc ? `<span>${w.desc}</span>` : ''}
+            <span>Lat: ${Number(w.lat).toFixed(4)}°</span>
+            <span>Lon: ${Number(w.lon).toFixed(4)}°</span>
+            ${w.desc ? `<span>${esc(w.desc)}</span>` : ''}
           </div>
         </div>
         <div>
-          <button class="hud-btn btn-delete-wpt" data-id="${w.id}" style="padding: 4px 8px; font-size: 11px; color: #ef4444;">حذف</button>
+          <button class="hud-btn btn-delete-wpt" data-id="${esc(w.id)}" style="padding: 4px 8px; font-size: 11px; color: #ef4444;">حذف</button>
         </div>
       `;
       waypointsListContainer.appendChild(div);
     });
 
-    waypointsListContainer.querySelectorAll('.btn-delete-wpt').forEach(btn => {
+    waypointsListContainer.querySelectorAll('.btn-delete-wpt').forEach((btn) => {
       btn.addEventListener('click', async () => {
         await window.api.deleteWaypoint(btn.dataset.id);
         loadRoutesAndWaypoints();
@@ -1350,7 +1469,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   if (btnCancelManualWpt) {
-    btnCancelManualWpt.addEventListener('click', () => manualWptForm.style.display = 'none');
+    btnCancelManualWpt.addEventListener('click', () => (manualWptForm.style.display = 'none'));
   }
 
   if (btnSaveManualWpt) {
@@ -1387,9 +1506,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnImportGpxFile.addEventListener('click', async () => {
       const res = await window.api.importGPX();
       if (res && res.success) {
-        alert(`تم استيراد ${res.importedRoutesCount} مسارات و ${res.importedWaypointsCount} نقاط إرشادية بنجاح!`);
+        const trkInfo = res.importedTracksCount ? ` و ${res.importedTracksCount} مسار أثر` : '';
+        alert(
+          `تم استيراد ${res.importedRoutesCount} مسارات و ${res.importedWaypointsCount} نقاط إرشادية${trkInfo} بنجاح!`
+        );
         await loadRoutesAndWaypoints();
       }
+    });
+  }
+
+  // استرجاع أثر الإبحار الدائم من التخزين عند الإقلاع
+  if (window.api && window.api.getTrack) {
+    try {
+      const trackData = await window.api.getTrack();
+      if (trackData && Array.isArray(trackData.points) && trackData.points.length > 0) {
+        chartEngine.setTrackHistory(trackData.points);
+        chartEngine.render(currentVesselState, currentAisTargets);
+      }
+    } catch (e) {
+      console.warn('Track hydration failed:', e);
+    }
+  }
+
+  // مسح سجل الأثر
+  const btnClearTrack = document.getElementById('btnClearTrack');
+  if (btnClearTrack && window.api && window.api.clearTrack) {
+    btnClearTrack.addEventListener('click', async () => {
+      if (!confirm('سيتم مسح كامل سجل أثر الإبحار الدائم. هل أنت متأكد؟')) return;
+      await window.api.clearTrack();
+      chartEngine.clearTrackHistory();
+      chartEngine.render(currentVesselState, currentAisTargets);
     });
   }
 
@@ -1418,9 +1564,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 8. محدد أوضاع الإضاءة الملاحية (Day / Dusk / Night)
   // =========================================================
   const modeButtons = document.querySelectorAll('.mode-btn');
-  modeButtons.forEach(btn => {
+  modeButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
-      modeButtons.forEach(b => b.classList.remove('active'));
+      modeButtons.forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       const mode = btn.dataset.mode;
       document.body.className = '';
@@ -1433,7 +1579,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   // =========================================================
   // 9. نافذة حول البرنامج (About Dialog) وفق معايير ARN
   // =========================================================
-  btnAbout.addEventListener('click', () => aboutModal.classList.add('open'));
+  btnAbout.addEventListener('click', async () => {
+    aboutModal.classList.add('open');
+    const infoEl = document.getElementById('wmmModelInfo');
+    if (infoEl && window.api && window.api.getWmmModelInfo) {
+      try {
+        const m = await window.api.getWmmModelInfo();
+        if (m && m.initialized) {
+          const status = m.withinValidity
+            ? '<span style="color: var(--accent-green);">● صالح</span>'
+            : '<span style="color: var(--accent-red);">● خارج نافذة الصلاحية</span>';
+          infoEl.innerHTML =
+            `النموذج المغناطيسي: ${esc(m.modelName)} (حقبة ${m.epoch}، صالح ${m.validFrom}–${m.validUntil}) ${status}` +
+            (m.releaseDate ? `<br>تاريخ الإصدار: ${esc(m.releaseDate)}` : '');
+        } else {
+          infoEl.textContent = 'النموذج المغناطيسي غير محمّل.';
+        }
+      } catch {
+        infoEl.textContent = 'تعذر قراءة معلومات النموذج المغناطيسي.';
+      }
+    }
+  });
   btnCloseAbout.addEventListener('click', () => aboutModal.classList.remove('open'));
 
   document.getElementById('linkWhatsApp').addEventListener('click', (e) => {

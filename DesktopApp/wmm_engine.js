@@ -11,8 +11,12 @@ const path = require('path');
 class WMMEngine {
   constructor(cofPath) {
     this.cofPath = cofPath || path.join(__dirname, '..', 'data', 'wmm', 'WMM.COF');
-    this.epoch = 2020.0;
+    this.epoch = 2025.0;
     this.modelName = 'WMM';
+    this.releaseDate = '';
+    // عمر النموذج التصميمي 5 سنوات (WMM-2025 صالح من 2025 حتى 2030)
+    this.validFrom = 2025.0;
+    this.validUntil = 2030.0;
     this.maxDegree = 12;
 
     // مصفوفات معاملات كروية هارمونية (Spherical Harmonics Coefficients)
@@ -39,8 +43,12 @@ class WMMEngine {
       // سطر الترويسة: Epoch, Model, Release Date
       const headerTokens = lines[0].trim().split(/\s+/);
       if (headerTokens.length >= 1) {
-        this.epoch = parseFloat(headerTokens[0]) || 2020.0;
+        this.epoch = parseFloat(headerTokens[0]) || 2025.0;
         this.modelName = headerTokens[1] || 'WMM';
+        this.releaseDate = headerTokens.slice(2).join(' ');
+        // نافذة الصلاحية الرسمية لأي إصدار WMM هي 5 سنوات من حقبة الإصدار
+        this.validFrom = this.epoch;
+        this.validUntil = this.epoch + 5.0;
       }
 
       // تهيئة المصفوفات بحجم 13x13 (لدرجة maxDegree = 12)
@@ -91,7 +99,7 @@ class WMMEngine {
 
     this.snorm[0][0] = 1.0;
     for (let n = 1; n <= this.maxDegree; n++) {
-      this.snorm[0][n] = this.snorm[0][n - 1] * (2 * n - 1) / n;
+      this.snorm[0][n] = (this.snorm[0][n - 1] * (2 * n - 1)) / n;
       let j = 2;
       for (let m = 0, D1 = 1, D2 = (n - m + D1) / D1; D2 > 0; D2--, m += D1) {
         this.k[m][n] = ((n - 1) * (n - 1) - m * m) / ((2 * n - 1) * (2 * n - 3));
@@ -101,7 +109,7 @@ class WMMEngine {
           j = 1;
         }
       }
-      this.fn[n] = (n + 1);
+      this.fn[n] = n + 1;
       this.fm[n] = n;
     }
     this.k[1][1] = 0.0;
@@ -115,31 +123,55 @@ class WMMEngine {
    * @param {number} [altKm=0] - الارتفاع عن سطح البحر بالكيلومتر
    * @returns {Object} { declination, inclination, horizontalIntensity, totalIntensity, str }
    */
+  /**
+   * تحويل التاريخ إلى سنة عشرية (decimal year)
+   */
+  _toDecimalYear(date) {
+    if (typeof date === 'number') return date;
+    const d = date instanceof Date ? date : new Date();
+    const startOfYear = new Date(d.getFullYear(), 0, 1);
+    const endOfYear = new Date(d.getFullYear() + 1, 0, 1);
+    return d.getFullYear() + (d - startOfYear) / (endOfYear - startOfYear);
+  }
+
+  /**
+   * معلومات النموذج المحمّل وحالة صلاحيته للتاريخ المطلوب
+   */
+  getModelInfo(date = new Date()) {
+    const year = this._toDecimalYear(date);
+    return {
+      modelName: this.modelName,
+      epoch: this.epoch,
+      releaseDate: this.releaseDate,
+      validFrom: this.validFrom,
+      validUntil: this.validUntil,
+      withinValidity: year >= this.validFrom && year <= this.validUntil,
+      initialized: this._initialized
+    };
+  }
+
   calculate(lat, lon, date, altKm = 0) {
     if (!this._initialized) {
-      return { declination: 0, inclination: 0, horizontalIntensity: 0, totalIntensity: 0, str: '0.0°' };
+      return {
+        declination: 0,
+        inclination: 0,
+        horizontalIntensity: 0,
+        totalIntensity: 0,
+        str: '0.0°',
+        modelExpired: true,
+        modelInfo: this.getModelInfo(date)
+      };
     }
 
-    let year = this.epoch;
-    if (typeof date === 'number') {
-      year = date;
-    } else if (date instanceof Date) {
-      const startOfYear = new Date(date.getFullYear(), 0, 1);
-      const endOfYear = new Date(date.getFullYear() + 1, 0, 1);
-      year = date.getFullYear() + (date - startOfYear) / (endOfYear - startOfYear);
-    } else {
-      const now = new Date();
-      const startOfYear = new Date(now.getFullYear(), 0, 1);
-      const endOfYear = new Date(now.getFullYear() + 1, 0, 1);
-      year = now.getFullYear() + (now - startOfYear) / (endOfYear - startOfYear);
-    }
+    const year = this._toDecimalYear(date);
+    const modelExpired = year < this.validFrom || year > this.validUntil;
 
     const dt = year - this.epoch;
 
     // ثوابت WGS-84
-    const a = 6378.137;           // نصف القطر الاستوائي (كم)
-    const b = 6356.7523142;       // نصف القطر القطبي (كم)
-    const re = 6371.2;            // نصف قطر الأرض المرجعي المغناطيسي
+    const a = 6378.137; // نصف القطر الاستوائي (كم)
+    const b = 6356.7523142; // نصف القطر القطبي (كم)
+    const re = 6371.2; // نصف قطر الأرض المرجعي المغناطيسي
     const a2 = a * a;
     const b2 = b * b;
     const c2 = a2 - b2;
@@ -163,11 +195,8 @@ class WMMEngine {
     const q2 = ((q1 + a2) / (q1 + b2)) * ((q1 + a2) / (q1 + b2));
     const ct = srlat / Math.sqrt(q2 * crlat2 + srlat2);
     const st = Math.sqrt(1.0 - ct * ct);
-    const r2 = (altKm * altKm) + 2.0 * q1 + (a4 - c4 * srlat2) / (q * q);
+    const r2 = altKm * altKm + 2.0 * q1 + (a4 - c4 * srlat2) / (q * q);
     const r = Math.sqrt(r2);
-    const d = Math.sqrt(a2 * crlat2 + b2 * srlat2);
-    const ca = (altKm + d) / r;
-    const sa = (c2 * crlat * srlat) / (r * d);
 
     // مصفوفة القوى المتتالية (Powers of re / r)
     const size = this.maxDegree + 1;
@@ -235,22 +264,37 @@ class WMMEngine {
           }
         }
 
-        const par = ar[n - 1];
-        const rho = (m === 0) ? tc : (tc * cp[m] + th * sp[m]);
+        // الأس الصحيح للحد من الرتبة n هو (re/r)^(n+2): ar[k] = aor^(k+2)
+        const par = ar[n];
+        const rho = m === 0 ? tc : tc * cp[m] + th * sp[m];
 
-        bx -= par * dp[m][n] * rho * this.snorm[m][n];
+        // ملاحظة معيارية: مصفوفة dp في هذا المحرك مبنية كمشتقة بالنسبة لخط العرض
+        // القطبي (colatitude)، بينما صيغة جمع NOAA تستخدم المشتقة بالنسبة لخط العرض
+        // الجيوديسي المركزي (latitude) — والإشارة معكوسة بينهما، لذا تُجمع بـ plus.
+        bx += par * dp[m][n] * rho * this.snorm[m][n];
         bz -= (n + 1) * par * p[m][n] * rho * this.snorm[m][n];
 
         if (st !== 0.0 && m > 0) {
-          by += par * p[m][n] * (m * (tc * sp[m] - th * cp[m])) * this.snorm[m][n] / st;
+          by += (par * p[m][n] * (m * (tc * sp[m] - th * cp[m])) * this.snorm[m][n]) / st;
         }
       }
     }
 
+    // مكونات الحقل الكروية (لأغراض الاختبار والمراجعة التقنية)
+    this._lastSpherical = { bx, by, bz, ct, st };
+
     // التحويل من الإحداثيات الكروية إلى الإحداثيات الجيوديسية (X: North, Y: East, Z: Down)
-    const x = -bx * ca - bz * sa;
+    // وفق الصيغة المرجعية NOAA GeomagnetismLibrary:
+    //   Psi = خط العرض الجيوديسي المركزي (geocentric) - خط العرض الجيوديسي
+    //   Bx_geo = Bx_sph·cos(Psi) - Bz_sph·sin(Psi)
+    //   Bz_geo = Bx_sph·sin(Psi) + Bz_sph·cos(Psi)
+    const phigRad = Math.asin(Math.max(-1, Math.min(1, ct)));
+    const psi = phigRad - rlat;
+    const cosPsi = Math.cos(psi);
+    const sinPsi = Math.sin(psi);
+    const x = bx * cosPsi - bz * sinPsi;
     const y = by;
-    const z = bx * sa - bz * ca;
+    const z = bx * sinPsi + bz * cosPsi;
 
     // الحسابات الملاحية للمجال
     const h = Math.sqrt(x * x + y * y);
@@ -264,11 +308,13 @@ class WMMEngine {
     const str = `${absD.toFixed(1)}° ${dir}`;
 
     return {
-      declination: dDeg,             // الانحراف المغناطيسي بالدرجات
-      inclination: iDeg,             // الميل المغناطيسي بالدرجات
-      horizontalIntensity: h,        // المركبة الأفقية (nT)
-      totalIntensity: f,             // الشدة الإجمالية (nT)
-      str: str                       // النص الملاحي الجاهز للعرض
+      declination: dDeg, // الانحراف المغناطيسي بالدرجات
+      inclination: iDeg, // الميل المغناطيسي بالدرجات
+      horizontalIntensity: h, // المركبة الأفقية (nT)
+      totalIntensity: f, // الشدة الإجمالية (nT)
+      str: str, // النص الملاحي الجاهز للعرض
+      modelExpired, // true إذا كان التاريخ خارج نافذة صلاحية النموذج
+      modelInfo: this.getModelInfo(date)
     };
   }
 

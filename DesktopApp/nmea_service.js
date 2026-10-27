@@ -56,9 +56,27 @@ class NMEAService extends EventEmitter {
     // خريطة أهداف الـ AIS الحقيقية المفكوكة من إشارات الراديو (MMSI -> Target)
     this.aisTargetsMap = new Map();
     this.aisMultipartCache = new Map(); // للرسائل متعددة الأجزاء
+    this.maxMultipartEntries = 256; // حد لحماية الذاكرة من الرسائل الناقصة
+    this.maxTargets = 2000; // حد أقصى لأهداف AIS المخزنة
+
+    // إحصائيات جودة البيانات
+    this.stats = { parsed: 0, checksumRejected: 0, noChecksum: 0, aisMessages: 0 };
 
     // مؤقت تنظيف أهداف الـ AIS المنقطعة (التي لم ترسل إشارة لأكثر من 6 دقائق)
-    setInterval(() => this._cleanupStaleAISTargets(), 30000);
+    this._cleanupTimer = setInterval(() => this._cleanupStaleAISTargets(), 30000);
+    if (this._cleanupTimer.unref) this._cleanupTimer.unref();
+  }
+
+  /**
+   * إيقاف كافة المؤقتات الداخلية عند إغلاق التطبيق
+   */
+  destroy() {
+    if (this._cleanupTimer) {
+      clearInterval(this._cleanupTimer);
+      this._cleanupTimer = null;
+    }
+    this.aisTargetsMap.clear();
+    this.aisMultipartCache.clear();
   }
 
   // =================================================================
@@ -278,9 +296,14 @@ class NMEAService extends EventEmitter {
       }
       const actualHex = calculatedChecksum.toString(16).toUpperCase().padStart(2, '0');
       if (actualHex !== expectedChecksumHex.toUpperCase()) {
+        this.stats.checksumRejected++;
         return; // إسقاط الجملة التالفة
       }
+    } else {
+      // جملة بلا checksum (بعض الأجهزة القديمة) — تُقبل لكن تُسجَّل للمراقبة
+      this.stats.noChecksum++;
     }
+    this.stats.parsed++;
 
     const body = clean.slice(1, starIndex !== -1 ? starIndex : clean.length);
     const parts = body.split(',');
@@ -329,7 +352,7 @@ class NMEAService extends EventEmitter {
           this.vessel.lat = lat;
           this.vessel.lon = lon;
           this.vessel.lastFixTime = new Date().toISOString();
-          this.vessel.fixQuality = fixQual === 1 ? 'GPS Standard' : (fixQual === 2 ? 'DGPS' : 'RTK Enhanced');
+          this.vessel.fixQuality = fixQual === 1 ? 'GPS Standard' : fixQual === 2 ? 'DGPS' : 'RTK Enhanced';
           updated = true;
         }
       }
@@ -360,7 +383,8 @@ class NMEAService extends EventEmitter {
       const valid = parts[5];
 
       if (valid === 'A' && !isNaN(angle) && !isNaN(speed)) {
-        if (unit === 'K') speed = speed * 0.539957; // km/h to knots
+        if (unit === 'K')
+          speed = speed * 0.539957; // km/h to knots
         else if (unit === 'M') speed = speed * 1.94384; // m/s to knots
 
         this.vessel.windAngle = angle;
@@ -414,6 +438,11 @@ class NMEAService extends EventEmitter {
     // معالجة الرسائل متعددة الأجزاء (Multipart)
     if (count > 1) {
       if (!this.aisMultipartCache.has(seqId)) {
+        // حد أقصى للذاكرة: إزاحة أقدم مجموعة عند الاكتظاظ
+        if (this.aisMultipartCache.size >= this.maxMultipartEntries) {
+          const oldestKey = this.aisMultipartCache.keys().next().value;
+          this.aisMultipartCache.delete(oldestKey);
+        }
         this.aisMultipartCache.set(seqId, []);
       }
       const frags = this.aisMultipartCache.get(seqId);
@@ -426,6 +455,7 @@ class NMEAService extends EventEmitter {
         return; // في انتظار بقية الأجزاء
       }
     }
+    this.stats.aisMessages++;
 
     // تحويل الـ Armored ASCII إلى شريط بايتات ثنائي 6-Bit Binary String
     const bitString = this._payloadToBitString(fullPayload, fillBits);
@@ -439,7 +469,7 @@ class NMEAService extends EventEmitter {
       if (bitString.length < 168) return;
 
       const sogRaw = this._getIntFromBits(bitString, 50, 10);
-      const sog = sogRaw === 1023 ? 0.0 : (sogRaw / 10.0);
+      const sog = sogRaw === 1023 ? 0.0 : sogRaw / 10.0;
 
       const lonRaw = this._getSignedIntFromBits(bitString, 61, 28);
       const latRaw = this._getSignedIntFromBits(bitString, 89, 27);
@@ -448,20 +478,28 @@ class NMEAService extends EventEmitter {
       const lat = latRaw / 600000.0;
 
       const cogRaw = this._getIntFromBits(bitString, 116, 12);
-      const cog = cogRaw === 3600 ? 0.0 : (cogRaw / 10.0);
+      const cog = cogRaw === 3600 ? 0.0 : cogRaw / 10.0;
 
       const hdgRaw = this._getIntFromBits(bitString, 128, 9);
       const heading = hdgRaw === 511 ? cog : hdgRaw;
 
       if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
-        let target = this.aisTargetsMap.get(mmsi) || {
-          mmsi,
-          name: `MMSI ${mmsi}`,
-          callsign: '',
-          type: 'Vessel',
-          length: 0,
-          draft: 0
-        };
+        let target = this.aisTargetsMap.get(mmsi);
+        if (!target) {
+          // حماية من النمو غير المحدود للخريطة
+          if (this.aisTargetsMap.size >= this.maxTargets) {
+            const oldestMmsi = this.aisTargetsMap.keys().next().value;
+            this.aisTargetsMap.delete(oldestMmsi);
+          }
+          target = {
+            mmsi,
+            name: `MMSI ${mmsi}`,
+            callsign: '',
+            type: 'Vessel',
+            length: 0,
+            draft: 0
+          };
+        }
 
         target.lat = lat;
         target.lon = lon;
@@ -494,11 +532,23 @@ class NMEAService extends EventEmitter {
       const callsign = this._getTextFromBits(bitString, 70, 42).trim();
       const vesselName = this._getTextFromBits(bitString, 112, 120).trim();
 
-      if (this.aisTargetsMap.has(mmsi)) {
-        const target = this.aisTargetsMap.get(mmsi);
-        if (vesselName) target.name = vesselName;
-        if (callsign) target.callsign = callsign;
+      // قد تصل البيانات الثابتة (نوع 5) قبل تقرير الموقع (نوع 1/2/3) —
+      // ننشئ هدفاً مؤقتاً حتى لا تُهدر بيانات الاسم والنداء
+      let target = this.aisTargetsMap.get(mmsi);
+      if (!target) {
+        target = {
+          mmsi,
+          name: `MMSI ${mmsi}`,
+          callsign: '',
+          type: 'Vessel',
+          length: 0,
+          draft: 0,
+          lastSeen: Date.now()
+        };
+        this.aisTargetsMap.set(mmsi, target);
       }
+      if (vesselName) target.name = vesselName;
+      if (callsign) target.callsign = callsign;
     }
   }
 
@@ -548,7 +598,7 @@ class NMEAService extends EventEmitter {
     const now = Date.now();
     const staleThreshold = 6 * 60 * 1000;
     for (const [mmsi, target] of this.aisTargetsMap.entries()) {
-      if (target.lastSeen && (now - target.lastSeen > staleThreshold)) {
+      if (target.lastSeen && now - target.lastSeen > staleThreshold) {
         this.aisTargetsMap.delete(mmsi);
       }
     }
@@ -566,8 +616,8 @@ class NMEAService extends EventEmitter {
 
     // موقع بداية واقعي في البحر الأحمر
     if (this.vessel.lat === null || this.vessel.lon === null) {
-      this.vessel.lat = 27.8340;
-      this.vessel.lon = 34.3210;
+      this.vessel.lat = 27.834;
+      this.vessel.lon = 34.321;
       this.vessel.sog = 12.0;
       this.vessel.cog = 195.0;
       this.vessel.heading = 195.0;
@@ -602,12 +652,12 @@ class NMEAService extends EventEmitter {
 
   _updateSimulationTick() {
     if (Math.abs(this.vessel.rudder || 0) > 0.1) {
-      this.vessel.heading = (this.vessel.heading + (this.vessel.rudder * 0.15) + 360) % 360;
+      this.vessel.heading = (this.vessel.heading + this.vessel.rudder * 0.15 + 360) % 360;
       this.vessel.cog = this.vessel.heading;
     }
 
     const speedKnots = this.vessel.sog;
-    const distanceNm = (speedKnots / 3600);
+    const distanceNm = speedKnots / 3600;
     const radHeading = (this.vessel.heading * Math.PI) / 180;
 
     const deltaLat = (distanceNm * Math.cos(radHeading)) / 60;
@@ -630,8 +680,10 @@ class NMEAService extends EventEmitter {
     let anchorDriftMeters = 0;
     if (this.vessel.anchorWatch && this.vessel.anchorPos && this.vessel.lat && this.vessel.lon) {
       anchorDriftMeters = this._calculateDistanceMeters(
-        this.vessel.lat, this.vessel.lon,
-        this.vessel.anchorPos.lat, this.vessel.anchorPos.lon
+        this.vessel.lat,
+        this.vessel.lon,
+        this.vessel.anchorPos.lat,
+        this.vessel.anchorPos.lon
       );
       if (anchorDriftMeters > this.vessel.anchorRadius) {
         anchorAlert = true;
@@ -685,7 +737,7 @@ class NMEAService extends EventEmitter {
     if (!degMin || !hemisphere) return null;
     const deg = parseFloat(degMin.substring(0, 2));
     const min = parseFloat(degMin.substring(2));
-    let dec = deg + (min / 60.0);
+    let dec = deg + min / 60.0;
     if (hemisphere.toUpperCase() === 'S') dec = -dec;
     return dec;
   }
@@ -694,7 +746,7 @@ class NMEAService extends EventEmitter {
     if (!degMin || !hemisphere) return null;
     const deg = parseFloat(degMin.substring(0, 3));
     const min = parseFloat(degMin.substring(3));
-    let dec = deg + (min / 60.0);
+    let dec = deg + min / 60.0;
     if (hemisphere.toUpperCase() === 'W') dec = -dec;
     return dec;
   }
@@ -703,9 +755,9 @@ class NMEAService extends EventEmitter {
     const R = 3440.065;
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
     const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
-              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }

@@ -38,12 +38,7 @@ class AutopilotService {
     if (vessel.lat === null || vessel.lon === null) return;
 
     // استخراج بيانات التوجيه النشطة من مخطط المسارات
-    const steering = this.routePlanner.getActiveSteering(
-      vessel.lat,
-      vessel.lon,
-      vessel.sog || 0,
-      vessel.cog || 0
-    );
+    const steering = this.routePlanner.getActiveSteering(vessel.lat, vessel.lon, vessel.sog || 0, vessel.cog || 0);
 
     if (!steering) return;
 
@@ -111,7 +106,7 @@ class AutopilotService {
     const absVal = Math.abs(degVal);
     const deg = Math.floor(absVal);
     const min = ((absVal - deg) * 60).toFixed(2);
-    const hemi = isLat ? (degVal >= 0 ? 'N' : 'S') : (degVal >= 0 ? 'E' : 'W');
+    const hemi = isLat ? (degVal >= 0 ? 'N' : 'S') : degVal >= 0 ? 'E' : 'W';
     const padDeg = isLat ? String(deg).padStart(2, '0') : String(deg).padStart(3, '0');
     const padMin = String(min).padStart(5, '0');
     return `${padDeg}${padMin},${hemi}`;
@@ -130,23 +125,33 @@ class AutopilotService {
 
     // بث الجملة إلى مخرجات النوافذ والمنافذ المفتوحة
     const line = sentence + '\r\n';
+    let transmitted = false;
 
     // 1. الإرسال عبر منفذ الـ Serial إن كان متصلاً
-    if (this.nmeaService.serialPort && this.nmeaService.serialPort.isOpen) {
+    // (الخاصية الفعلية في NMEAService هي serialConnection وليست serialPort)
+    const serial = this.nmeaService.serialConnection;
+    if (serial && serial.isOpen && typeof serial.write === 'function') {
       try {
-        this.nmeaService.serialPort.write(line);
-      } catch (e) {}
+        serial.write(line);
+        transmitted = true;
+      } catch (e) {
+        console.warn('[Autopilot] Serial write failed:', e.message);
+      }
     }
 
     // 2. الإرسال عبر مقبس TCP إن كان متصلاً
     if (this.nmeaService.tcpSocket && !this.nmeaService.tcpSocket.destroyed) {
       try {
         this.nmeaService.tcpSocket.write(line);
-      } catch (e) {}
+        transmitted = true;
+      } catch (e) {
+        console.warn('[Autopilot] TCP write failed:', e.message);
+      }
     }
 
-    // 3. إشعار الواجهة كجملة NMEA صادرة
-    this.nmeaService.emit('raw_nmea', sentence);
+    // 3. إشعار الواجهة كجملة NMEA صادرة عبر قناة منفصلة
+    // (حتى لا تختلط المخرجات بالجمل الواردة في شاشة المراقبة)
+    this.nmeaService.emit('out_nmea', { sentence, transmitted });
   }
 }
 
