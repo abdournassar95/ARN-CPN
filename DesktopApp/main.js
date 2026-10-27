@@ -8,7 +8,6 @@ const path = require('path');
 const ChartScanner = require('./chart_scanner');
 const NMEAService = require('./nmea_service');
 const BSBDecoder = require('./bsb_decoder');
-const MBTilesReader = require('./mbtiles_reader');
 const GSHHSProvider = require('./gshhs_provider');
 const S57Decoder = require('./s57_decoder');
 const TidesEngine = require('./tides_engine');
@@ -16,6 +15,8 @@ const WMMEngine = require('./wmm_engine');
 const RoutePlanner = require('./route_planner');
 const AutopilotService = require('./autopilot_service');
 const SettingsManager = require('./settings_manager');
+const TrackStore = require('./track_store');
+const GribDecoder = require('./grib_decoder');
 const fs = require('fs');
 
 let mainWindow = null;
@@ -28,9 +29,35 @@ const wmmEngine = new WMMEngine();
 const routePlanner = new RoutePlanner();
 const autopilotService = new AutopilotService(nmeaService, routePlanner, wmmEngine);
 const settingsManager = new SettingsManager();
+const trackStore = new TrackStore();
 
 const openMbtilesMap = new Map();
+const MAX_OPEN_MBTILES = 4; // حد LRU لقارئات SQLite المفتوحة
 let loadedChartsCache = [];
+
+/**
+ * إدارة دورة حياة قارئات MBTiles مع إزاحة LRU وإغلاق الموارد
+ */
+async function getMbtilesReader(mbtilesPath) {
+  if (openMbtilesMap.has(mbtilesPath)) {
+    return openMbtilesMap.get(mbtilesPath);
+  }
+  if (openMbtilesMap.size >= MAX_OPEN_MBTILES) {
+    const oldestKey = openMbtilesMap.keys().next().value;
+    const oldReader = openMbtilesMap.get(oldestKey);
+    try {
+      oldReader.close();
+    } catch {
+      /* تجاهل */
+    }
+    openMbtilesMap.delete(oldestKey);
+  }
+  const MBTilesReader = require('./mbtiles_reader');
+  const reader = new MBTilesReader(mbtilesPath);
+  await reader.init();
+  openMbtilesMap.set(mbtilesPath, reader);
+  return reader;
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -101,6 +128,7 @@ function createWindow() {
         const wmm = wmmEngine.calculate(payload.vessel.lat, payload.vessel.lon);
         payload.vessel.magVariation = wmm.declination;
         payload.vessel.magVariationStr = wmm.str;
+        payload.vessel.magModelExpired = wmm.modelExpired;
 
         // 2. حساب بيانات التوجيه النشطة (Steering, DTW, BTW, XTE)
         payload.steering = routePlanner.getActiveSteering(
@@ -109,6 +137,12 @@ function createWindow() {
           payload.vessel.sog,
           payload.vessel.cog
         );
+
+        // 3. حفظ أثر الإبحار بشكل دائم في userData (كتابة مُجمّعة)
+        trackStore.appendPoint(payload.vessel.lat, payload.vessel.lon, {
+          sog: payload.vessel.sog,
+          cog: payload.vessel.cog
+        });
       }
       mainWindow.webContents.send('telemetry:update', payload);
     }
@@ -132,9 +166,31 @@ function createWindow() {
     }
   });
 
+  // جمل NMEA الصادرة من الطيار الآلي (قناة منفصلة عن الوارد)
+  nmeaService.on('out_nmea', (out) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('nmea:out', out);
+    }
+  });
+
   mainWindow.on('closed', () => {
     autopilotService.stop();
     nmeaService.disconnect();
+    nmeaService.destroy();
+    trackStore.destroy();
+    for (const reader of openMbtilesMap.values()) {
+      try {
+        reader.close();
+      } catch {
+        /* تجاهل */
+      }
+    }
+    openMbtilesMap.clear();
+    try {
+      gshhsProvider.close();
+    } catch {
+      /* تجاهل */
+    }
     mainWindow = null;
   });
 }
@@ -207,10 +263,10 @@ ipcMain.handle('charts:get-gshhs', (event, bounds) => {
   }
 });
 
-// 4. فتح وقراءة خريطة متجهات S-57 ENC (.000)
-ipcMain.handle('charts:open-s57', (event, s57Path) => {
+// 4. فتح وقراءة خريطة متجهات S-57 ENC (.000) — قراءة غير حاجبة
+ipcMain.handle('charts:open-s57', async (event, s57Path) => {
   try {
-    const chartData = s57Decoder.parseFile(s57Path);
+    const chartData = await s57Decoder.parseFileAsync(s57Path);
     return { success: true, chart: chartData };
   } catch (error) {
     console.error('[S-57] Parse failed:', error.message);
@@ -218,7 +274,7 @@ ipcMain.handle('charts:open-s57', (event, s57Path) => {
   }
 });
 
-// 5. فتح وقراءة خريطة BSB/KAP محددة
+// 5. فتح وقراءة ترويسة خريطة BSB/KAP محددة
 ipcMain.handle('charts:open-bsb', (event, bsbPath) => {
   try {
     const decoder = new BSBDecoder(bsbPath);
@@ -228,15 +284,23 @@ ipcMain.handle('charts:open-bsb', (event, bsbPath) => {
   }
 });
 
-// 6. فتح حزمة MBTiles واستعلام الرقع محلياً
+// 5b. فك الصورة النقطية الكاملة لخريطة BSB/KAP (RLE + PNG)
+ipcMain.handle('charts:open-bsb-image', (event, bsbPath) => {
+  try {
+    const decoder = new BSBDecoder(bsbPath);
+    const metadata = decoder.toMetadata();
+    const dataUrl = decoder.getImageDataURL();
+    return { success: true, metadata, dataUrl };
+  } catch (error) {
+    console.warn('[BSB] Image decode failed:', error.message);
+    return { success: false, error: error.message };
+  }
+});
+
+// 6. فتح حزمة MBTiles واستعلام الرقع محلياً (LRU)
 ipcMain.handle('charts:open-mbtiles', async (event, mbtilesPath) => {
   try {
-    if (!openMbtilesMap.has(mbtilesPath)) {
-      const reader = new MBTilesReader(mbtilesPath);
-      await reader.init();
-      openMbtilesMap.set(mbtilesPath, reader);
-    }
-    const reader = openMbtilesMap.get(mbtilesPath);
+    const reader = await getMbtilesReader(mbtilesPath);
     return { success: true, metadata: reader.metadata };
   } catch (error) {
     return { success: false, error: error.message };
@@ -245,14 +309,49 @@ ipcMain.handle('charts:open-mbtiles', async (event, mbtilesPath) => {
 
 ipcMain.handle('charts:get-mbtiles-tile', async (event, { path: mbtilesPath, z, x, y }) => {
   try {
-    if (!openMbtilesMap.has(mbtilesPath)) {
-      const reader = new MBTilesReader(mbtilesPath);
-      await reader.init();
-      openMbtilesMap.set(mbtilesPath, reader);
-    }
-    const reader = openMbtilesMap.get(mbtilesPath);
+    const reader = await getMbtilesReader(mbtilesPath);
     const dataUrl = reader.getTileDataURL(z, x, y);
     return { success: true, dataUrl };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// 6b. فتح وتحليل ملف طقس GRIB1 حقيقي
+ipcMain.handle('grib:open-file', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'فتح ملف طقس بحري GRIB1',
+    filters: [
+      { name: 'GRIB Weather Files', extensions: ['grb', 'grib', 'grb1', 'bin'] },
+      { name: 'All Files', extensions: ['*'] }
+    ],
+    properties: ['openFile']
+  });
+  if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
+    return { success: false, canceled: true };
+  }
+  try {
+    const grids = GribDecoder.parseFile(result.filePaths[0]);
+    return {
+      success: true,
+      fileName: path.basename(result.filePaths[0]),
+      grids: grids.map((g) => ({
+        parameter: g.parameter,
+        label: g.label,
+        unit: g.unit,
+        levelValue: g.levelValue,
+        ni: g.ni,
+        nj: g.nj,
+        lat0: g.lat0,
+        lon0: g.lon0,
+        lat1: g.lat1,
+        lon1: g.lon1,
+        dLat: g.dLat,
+        dLon: g.dLon,
+        referenceTime: g.referenceTime ? g.referenceTime.toISOString() : null,
+        values: Array.from(g.values)
+      }))
+    };
   } catch (error) {
     return { success: false, error: error.message };
   }
@@ -314,9 +413,29 @@ ipcMain.handle('nmea:connect-tcp', (event, { host, port, remember = true }) => {
 });
 
 ipcMain.handle('nmea:disconnect', () => {
+  // إيقاف بث الطيار الآلي أولاً حتى لا تُرسل جمل توجيه بلا مصدر موقع
+  autopilotService.stop();
+  nmeaService.stopSimulation();
   nmeaService.disconnect();
   // عند قطع الاتصال اليدوي، نلغي الربط التلقائي في المرة القادمة
   settingsManager.updateSettings({ lastConnection: { autoConnect: false } });
+  return { success: true };
+});
+
+// 8b. محاكي الإبحار الداخلي (للتجربة دون أجهزة حقيقية)
+ipcMain.handle('simulation:start', () => {
+  nmeaService.startSimulation();
+  return { success: true, simulating: nmeaService.isSimulating };
+});
+
+ipcMain.handle('simulation:stop', () => {
+  nmeaService.stopSimulation();
+  return { success: true, simulating: false };
+});
+
+ipcMain.handle('vessel:control', (event, controls) => {
+  if (!controls || typeof controls !== 'object') return { success: false };
+  nmeaService.controlVessel(controls);
   return { success: true };
 });
 
@@ -336,6 +455,10 @@ ipcMain.handle('safety:clear-mob', () => {
 // 10. حسابات النموذج المغناطيسي العالمي WMM (Offline NOAA WMM)
 ipcMain.handle('wmm:calculate', (event, { lat, lon, date, altKm }) => {
   return wmmEngine.calculate(lat, lon, date ? new Date(date) : new Date(), altKm || 0);
+});
+
+ipcMain.handle('wmm:model-info', () => {
+  return wmmEngine.getModelInfo(new Date());
 });
 
 ipcMain.handle('wmm:true-to-magnetic', (event, { trueCourse, lat, lon }) => {
@@ -388,8 +511,9 @@ ipcMain.handle('routes:advance-wpt', () => {
   return routePlanner.advanceActiveWaypoint();
 });
 
-ipcMain.handle('routes:export-gpx', async (event, { routeId } = {}) => {
-  const gpxXml = routePlanner.exportToGPX(routeId);
+ipcMain.handle('routes:export-gpx', async (event, { routeId, includeTrack = true } = {}) => {
+  const tracks = includeTrack ? trackStore.getPoints() : null;
+  const gpxXml = routePlanner.exportToGPX(routeId, tracks);
   const result = await dialog.showSaveDialog(mainWindow, {
     title: 'تصدير مسارات الملاحة البحرية بصيغة GPX',
     defaultPath: path.join(app.getPath('documents'), `ARN_Route_${Date.now()}.gpx`),
@@ -417,6 +541,20 @@ ipcMain.handle('routes:import-gpx', async () => {
     return { ...importRes, filePath };
   }
   return { success: false, canceled: true };
+});
+
+// 11b. إدارة أثر الإبحار الدائم (Track Store في userData)
+ipcMain.handle('track:get', () => {
+  return { points: trackStore.getPoints(), count: trackStore.points.length };
+});
+
+ipcMain.handle('track:clear', () => {
+  trackStore.clear();
+  return { success: true, count: 0 };
+});
+
+ipcMain.handle('track:flush', () => {
+  return { success: true, flushed: trackStore.flush() };
 });
 
 // 12. تشغيل وبث التوجيه الآلي NMEA للطيار الآلي (Autopilot Output)
@@ -480,7 +618,10 @@ ipcMain.handle('places:get-world-places', () => {
   try {
     const placesPath = path.join(__dirname, '..', 'data', 'world_places.json');
     if (fs.existsSync(placesPath)) {
-      const content = fs.readFileSync(placesPath, 'utf8').replace(/^\uFEFF/, '').trim();
+      const content = fs
+        .readFileSync(placesPath, 'utf8')
+        .replace(/^\uFEFF/, '')
+        .trim();
       return JSON.parse(content);
     }
   } catch (e) {

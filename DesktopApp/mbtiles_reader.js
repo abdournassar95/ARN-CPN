@@ -4,6 +4,7 @@
  * قارئ حزم الرقع الملاحية المحلية المجمعة بصيغة SQLite MBTiles عبر WebAssembly
  */
 
+const fsp = require('fs').promises;
 const fs = require('fs');
 let initSqlJs = null;
 try {
@@ -50,11 +51,13 @@ class MBTilesReader {
     }
 
     try {
-      const fileBuffer = fs.readFileSync(this.filePath);
+      // قراءة غير حاجبة لمسار الأحداث الرئيسي مع الملفات الكبيرة
+      const fileBuffer = await fsp.readFile(this.filePath);
       this.db = new SQL.Database(fileBuffer);
       this._loadMetadata();
     } catch (e) {
       console.warn(`تعذر فتح ملف MBTiles (${this.filePath}):`, e.message);
+      throw e;
     }
     return this;
   }
@@ -75,9 +78,9 @@ class MBTilesReader {
           else if (name === 'minzoom') this.metadata.minzoom = parseInt(value, 10);
           else if (name === 'maxzoom') this.metadata.maxzoom = parseInt(value, 10);
           else if (name === 'bounds') {
-            this.metadata.bounds = value.split(',').map(v => parseFloat(v.trim()));
+            this.metadata.bounds = value.split(',').map((v) => parseFloat(v.trim()));
           } else if (name === 'center') {
-            this.metadata.center = value.split(',').map(v => parseFloat(v.trim()));
+            this.metadata.center = value.split(',').map((v) => parseFloat(v.trim()));
           }
         }
       }
@@ -123,9 +126,7 @@ class MBTilesReader {
     const tileBytes = this.getTile(z, x, y);
     if (!tileBytes) return null;
 
-    const mime = this.metadata.format === 'jpg' || this.metadata.format === 'jpeg' 
-      ? 'image/jpeg' 
-      : 'image/png';
+    const mime = this.metadata.format === 'jpg' || this.metadata.format === 'jpeg' ? 'image/jpeg' : 'image/png';
     const base64 = Buffer.from(tileBytes).toString('base64');
     return `data:${mime};base64,${base64}`;
   }

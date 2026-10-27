@@ -1,0 +1,24 @@
+/* ===================================================================
+   ARN Marine Navigator - Offline Local Fonts
+   خطوط محلية بالكامل (لا أي اتصال بالإنترنت)
+   Cairo: SIL Open Font License 1.1 (انظر assets/fonts/Cairo-OFL.txt)
+   JetBrains Mono: SIL OFL 1.1 (انظر assets/fonts/JetBrainsMono-OFL.txt)
+   =================================================================== */
+
+/* Cairo Variable (slnt + wght) — خط الواجهة العربي */
+@font-face {
+  font-family: 'Cairo';
+  src: url('../../assets/fonts/Cairo-VF.ttf') format('truetype-variations');
+  font-weight: 100 1000;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* JetBrains Mono Variable (wght) — خط البيانات والإحداثيات الأحادي */
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('../../assets/fonts/JetBrainsMono-VF.woff2') format('woff2-variations');
+  font-weight: 100 1000;
+  font-style: normal;
+  font-display: swap;
+}

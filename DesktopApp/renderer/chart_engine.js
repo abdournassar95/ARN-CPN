@@ -10,8 +10,8 @@ class MarineChartEngine {
     this.ctx = this.canvas.getContext('2d');
 
     // مركز العرض الملاحي
-    this.centerLat = 27.8340;
-    this.centerLon = 34.3210;
+    this.centerLat = 27.834;
+    this.centerLon = 34.321;
     this.zoom = 10; // مستوى التكبير
 
     // حالة تفاعل الفأرة والتحريك
@@ -26,6 +26,11 @@ class MarineChartEngine {
     // الخرائط الملاحية النشطة وطبقات العرض
     this.activeCharts = [];
     this.s57Charts = []; // خرائط المتجهات S-57 المحملة
+    this.rasterImages = new Map(); // صور BSB/KAP المفكوكة: path -> { img, bounds, title }
+    this.tileCache = new Map(); // كاش رقع MBTiles: key -> HTMLImageElement
+    this.tileInflight = new Map(); // طلبات الرقع قيد التحميل لمنع التكرار
+    this.tileProvider = null; // دالة مزود الرقع (تُحقن من app.js لعزل IPC)
+    this.tileZoomOverride = null;
     this.showChartOutlines = true;
     this.showRasterCharts = true;
     this.rasterOpacity = 0.85;
@@ -36,7 +41,7 @@ class MarineChartEngine {
 
     // خيارات العرض ومستويات التفاصيل الملاحية وفق معايير OpenCPN & IHO S-52
     this.displayCategory = 'standard'; // 'base', 'standard', 'all'
-    this.detailFactor = 0;              // منزلق التفاصيل من -5 إلى +5 (OpenCPN CM93 Detail Slider)
+    this.detailFactor = 0; // منزلق التفاصيل من -5 إلى +5 (OpenCPN CM93 Detail Slider)
     this.showCountryNames = true;
     this.showCityNames = true;
     this.showSeaNames = true;
@@ -44,13 +49,13 @@ class MarineChartEngine {
     this.places = { countries: [], cities: [], seas: [] };
 
     // بيانات الطبقات الجغرافية الحقيقية (خالية من أي بيانات وهمية)
-    this.coastlines = [];      // مضلعات GSHHS و S-57 الحقيقية
-    this.depthContours = [];   // خطوط الأعماق
-    this.depthAreas = [];      // مناطق الأعماق
-    this.navAids = [];         // المنارات والعوامات
-    this.soundings = [];       // قياسات الأعماق النقطية
-    this.hazards = [];         // حطام السفن والعوائق
-    this.tideStations = [];    // محطات المد والجزر
+    this.coastlines = []; // مضلعات GSHHS و S-57 الحقيقية
+    this.depthContours = []; // خطوط الأعماق
+    this.depthAreas = []; // مناطق الأعماق
+    this.navAids = []; // المنارات والعوامات
+    this.soundings = []; // قياسات الأعماق النقطية
+    this.hazards = []; // حطام السفن والعوائق
+    this.tideStations = []; // محطات المد والجزر
 
     // طبقات الملاحة التفاعلية (المسارات والنقاط الإرشادية و EBL/VRM)
     this.routes = [];
@@ -118,28 +123,28 @@ class MarineChartEngine {
    */
   geoToPixel(lat, lon) {
     const scale = Math.pow(2, this.zoom) * 256;
-    
+
     // معادلة مركاتور الكلاسيكية
-    const x = ((lon - this.centerLon) * (Math.PI / 180)) * (scale / (2 * Math.PI)) + (this.width / 2);
-    
+    const x = (lon - this.centerLon) * (Math.PI / 180) * (scale / (2 * Math.PI)) + this.width / 2;
+
     const latRad = (lat * Math.PI) / 180;
     const centerLatRad = (this.centerLat * Math.PI) / 180;
-    
+
     const yCenter = Math.log(Math.tan(Math.PI / 4 + centerLatRad / 2));
     const yPoint = Math.log(Math.tan(Math.PI / 4 + latRad / 2));
-    
-    const y = ((yCenter - yPoint) * (scale / (2 * Math.PI))) + (this.height / 2);
+
+    const y = (yCenter - yPoint) * (scale / (2 * Math.PI)) + this.height / 2;
 
     return { x, y };
   }
 
   pixelToGeo(x, y) {
     const scale = Math.pow(2, this.zoom) * 256;
-    const lon = this.centerLon + ((x - (this.width / 2)) * (2 * Math.PI) / scale) * (180 / Math.PI);
+    const lon = this.centerLon + (((x - this.width / 2) * (2 * Math.PI)) / scale) * (180 / Math.PI);
 
     const centerLatRad = (this.centerLat * Math.PI) / 180;
     const yCenter = Math.log(Math.tan(Math.PI / 4 + centerLatRad / 2));
-    const yPoint = yCenter - ((y - (this.height / 2)) * (2 * Math.PI) / scale);
+    const yPoint = yCenter - ((y - this.height / 2) * (2 * Math.PI)) / scale;
 
     const latRad = 2 * (Math.atan(Math.exp(yPoint)) - Math.PI / 4);
     const lat = (latRad * 180) / Math.PI;
@@ -343,7 +348,8 @@ class MarineChartEngine {
     for (const area of this.depthAreas) {
       // تظليل أزرق سماوي للمياه الضحلة وتدرج أغمق للمياه العميقة
       let fillColor = 'rgba(56, 189, 248, 0.04)';
-      if (area.maxDepth <= 5) fillColor = 'rgba(56, 189, 248, 0.15)'; // ضحلة جداً
+      if (area.maxDepth <= 5)
+        fillColor = 'rgba(56, 189, 248, 0.15)'; // ضحلة جداً
       else if (area.maxDepth <= 10) fillColor = 'rgba(56, 189, 248, 0.10)';
       else if (area.maxDepth <= 20) fillColor = 'rgba(56, 189, 248, 0.06)';
 
@@ -410,7 +416,7 @@ class MarineChartEngine {
         else ctx.lineTo(pt.x, pt.y);
       }
       ctx.stroke();
-      
+
       // كتابة قيمة العمق على الخط
       if (contour.depth && pts.length > 2) {
         const midIdx = Math.floor(pts.length / 2);
@@ -512,7 +518,7 @@ class MarineChartEngine {
     for (const aid of this.navAids) {
       const pt = this.geoToPixel(aid.lat, aid.lon);
       if (pt.x < -30 || pt.x > this.width + 30 || pt.y < -30 || pt.y > this.height + 30) continue;
-      
+
       // منارة مضيئة
       if (aid.type === 'lighthouse') {
         // هالة وميض الضوء
@@ -540,7 +546,7 @@ class MarineChartEngine {
         ctx.fillStyle = '#f8fafc';
         ctx.font = '10px Cairo';
         ctx.fillText(aid.name, pt.x + 8, pt.y + 4);
-      } 
+      }
       // عوامة ملاحية (Buoy)
       else {
         ctx.fillStyle = aid.color || '#10b981';
@@ -583,7 +589,7 @@ class MarineChartEngine {
 
       let pts = [];
       if (chart.neatline && chart.neatline.length >= 3) {
-        pts = chart.neatline.map(p => this.geoToPixel(p[0], p[1]));
+        pts = chart.neatline.map((p) => this.geoToPixel(p[0], p[1]));
       } else if (chart.bounds && chart.bounds.length >= 4) {
         const [minLon, minLat, maxLon, maxLat] = chart.bounds;
         pts = [
@@ -615,7 +621,78 @@ class MarineChartEngine {
   }
 
   /**
-   * رسم رقع الخرائط النقطية المحلية (BSB / KAP / MBTiles Overlays)
+   * حقن مزود رقع MBTiles (إبقاء المحرك معزولاً عن طبقة IPC وقابلاً للاختبار)
+   * provider(path, z, x, y) => Promise<dataUrl|null>
+   */
+  setTileProvider(provider) {
+    this.tileProvider = provider;
+  }
+
+  /**
+   * تسجيل صورة نقطية حقيقية لخريطة BSB/KAP بعد فكها في العملية الرئيسية
+   */
+  addRasterImage(chartPath, dataUrl, bounds, title = '') {
+    if (!dataUrl || !bounds || bounds.length < 4) return false;
+    const img = new Image();
+    img.onload = () => {
+      if (typeof this.onRedrawNeeded === 'function') this.onRedrawNeeded();
+    };
+    img.src = dataUrl;
+    this.rasterImages.set(chartPath, { img, bounds, title });
+    return true;
+  }
+
+  clearRasterImages() {
+    this.rasterImages.clear();
+    this.tileCache.clear();
+  }
+
+  /**
+   * تحويل إحداثيات slippy-map لرقعة إلى حدود جغرافية (Web Mercator)
+   */
+  _tileBounds(z, x, y) {
+    const n = Math.pow(2, z);
+    const lon1 = (x / n) * 360 - 180;
+    const lon2 = ((x + 1) / n) * 360 - 180;
+    const latRad1 = Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / n)));
+    const latRad2 = Math.atan(Math.sinh(Math.PI * (1 - (2 * (y + 1)) / n)));
+    return {
+      minLon: lon1,
+      maxLon: lon2,
+      maxLat: (latRad1 * 180) / Math.PI,
+      minLat: (latRad2 * 180) / Math.PI
+    };
+  }
+
+  /**
+   * طلب رقعة MBTiles مع كاش ودمج الطلبات المتزامنة
+   */
+  _requestTile(chart, z, x, y) {
+    const key = `${chart.path}:${z}:${x}:${y}`;
+    if (this.tileCache.has(key)) return this.tileCache.get(key);
+    if (this.tileInflight.has(key)) return null;
+    if (!this.tileProvider) return null;
+
+    const promise = this.tileProvider(chart.path, z, x, y)
+      .then((dataUrl) => {
+        this.tileInflight.delete(key);
+        if (!dataUrl) return;
+        const img = new Image();
+        img.onload = () => {
+          this.tileCache.set(key, img);
+          if (typeof this.onRedrawNeeded === 'function') this.onRedrawNeeded();
+        };
+        img.src = dataUrl;
+      })
+      .catch(() => this.tileInflight.delete(key));
+    this.tileInflight.set(key, promise);
+    return null;
+  }
+
+  /**
+   * رسم رقع الخرائط النقطية المحلية:
+   *  - صور BSB/KAP المفكوكة فعلياً
+   *  - رقع MBTiles (slippy XYZ) المسقطة على مركاتور المحرك
    */
   _renderRasterOverlays(ctx) {
     if (!this.showRasterCharts || !this.activeCharts || this.activeCharts.length === 0) return;
@@ -624,34 +701,105 @@ class MarineChartEngine {
     ctx.globalAlpha = this.rasterOpacity;
 
     for (const chart of this.activeCharts) {
+      // 1) BSB / KAP
       if (chart.type === 'BSB' || chart.type === 'KAP') {
+        const imageEntry = this.rasterImages.get(chart.path);
+        if (imageEntry && imageEntry.img && imageEntry.img.complete && imageEntry.img.naturalWidth > 0) {
+          const [minLon, minLat, maxLon, maxLat] = imageEntry.bounds;
+          const pTL = this.geoToPixel(maxLat, minLon);
+          const pBR = this.geoToPixel(minLat, maxLon);
+          ctx.drawImage(imageEntry.img, pTL.x, pTL.y, pBR.x - pTL.x, pBR.y - pTL.y);
+          ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(pTL.x, pTL.y, pBR.x - pTL.x, pBR.y - pTL.y);
+          continue;
+        }
+
+        // مسار احتياطي: إطار وصفى فقط عند تعذر فك الصورة
         if (chart.bounds && chart.bounds.length >= 4) {
           const [minLon, minLat, maxLon, maxLat] = chart.bounds;
           const pTopLeft = this.geoToPixel(maxLat, minLon);
           const pBottomRight = this.geoToPixel(minLat, maxLon);
           const w = pBottomRight.x - pTopLeft.x;
           const h = pBottomRight.y - pTopLeft.y;
-
-          // ورقة الخريطة الملاحية
-          ctx.fillStyle = 'rgba(254, 252, 232, 0.20)';
+          ctx.fillStyle = 'rgba(254, 252, 232, 0.12)';
           ctx.fillRect(pTopLeft.x, pTopLeft.y, w, h);
-
-          // إطار الخريطة المزدوج
           ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
           ctx.lineWidth = 1.5;
           ctx.strokeRect(pTopLeft.x, pTopLeft.y, w, h);
-
-          // عنوان وبيانات الخريطة الورقية الممسوحة
           ctx.font = 'bold 11px Cairo';
           ctx.fillStyle = '#38bdf8';
           ctx.fillText(`خريطة ورقية: ${chart.title || chart.name}`, pTopLeft.x + 10, pTopLeft.y + 18);
           ctx.font = '10px JetBrains Mono';
           ctx.fillStyle = '#94a3b8';
-          ctx.fillText(`Scale: ${chart.scale || 'N/A'} | Datum: ${chart.datum || 'WGS84'}`, pTopLeft.x + 10, pTopLeft.y + 32);
+          ctx.fillText(
+            `Scale: ${chart.scale || 'N/A'} | Datum: ${chart.datum || 'WGS84'}`,
+            pTopLeft.x + 10,
+            pTopLeft.y + 32
+          );
+        }
+      }
+
+      // 2) MBTiles — رقع XYZ حقيقية
+      if (chart.type === 'MBTiles' && this.tileProvider && chart.bounds && chart.bounds.length === 4) {
+        const meta = chart.metadata || {};
+        const minZoom = Number.isFinite(meta.minzoom) ? meta.minzoom : 0;
+        const maxZoom = Number.isFinite(meta.maxzoom) ? meta.maxzoom : 18;
+        const z = Math.max(minZoom, Math.min(maxZoom, Math.round(this.zoom)));
+        const n = Math.pow(2, z);
+
+        const [bMinLon, bMinLat, bMaxLon, bMaxLat] = chart.bounds;
+        const view = this.getViewBounds();
+
+        const lonToX = (lon) => ((lon + 180) / 360) * n;
+        const latToY = (lat) =>
+          ((1 - Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) / Math.PI) / 2) * n;
+
+        const xStart = Math.max(0, Math.floor(lonToX(Math.max(view[0], bMinLon))));
+        const xEnd = Math.min(n - 1, Math.floor(lonToX(Math.min(view[2], bMaxLon))));
+        const yStart = Math.max(0, Math.floor(latToY(Math.min(view[3], bMaxLat))));
+        const yEnd = Math.min(n - 1, Math.floor(latToY(Math.max(view[1], bMinLat))));
+
+        // حماية من طلب عدد هائل من الرقع
+        if ((xEnd - xStart + 1) * (yEnd - yStart + 1) <= 256) {
+          for (let x = xStart; x <= xEnd; x++) {
+            for (let y = yStart; y <= yEnd; y++) {
+              const img = this._requestTile(chart, z, x, y);
+              if (!img || !img.complete || img.naturalWidth === 0) continue;
+              const tb = this._tileBounds(z, x, y);
+              const pTL = this.geoToPixel(tb.maxLat, tb.minLon);
+              const pBR = this.geoToPixel(tb.minLat, tb.maxLon);
+              ctx.drawImage(img, pTL.x, pTL.y, pBR.x - pTL.x, pBR.y - pTL.y);
+            }
+          }
         }
       }
     }
     ctx.restore();
+  }
+
+  /**
+   * استبدال سجل الأثر من التخزين الدائم عند الإقلاع
+   */
+  setTrackHistory(points) {
+    if (!Array.isArray(points)) return;
+    this.trackHistory = points
+      .filter(
+        (p) =>
+          p &&
+          Number.isFinite(p.lat) &&
+          Number.isFinite(p.lon) &&
+          p.lat >= -90 &&
+          p.lat <= 90 &&
+          p.lon >= -180 &&
+          p.lon <= 180
+      )
+      .map((p) => ({ lat: p.lat, lon: p.lon }))
+      .slice(-this.maxTrackPoints);
+  }
+
+  clearTrackHistory() {
+    this.trackHistory = [];
   }
 
   /**
@@ -712,10 +860,10 @@ class MarineChartEngine {
     ctx.lineWidth = 2;
 
     ctx.beginPath();
-    ctx.moveTo(0, -18);      // Bow
-    ctx.lineTo(9, 12);       // Starboard
-    ctx.lineTo(0, 7);        // Stern
-    ctx.lineTo(-9, 12);      // Port
+    ctx.moveTo(0, -18); // Bow
+    ctx.lineTo(9, 12); // Starboard
+    ctx.lineTo(0, 7); // Stern
+    ctx.lineTo(-9, 12); // Port
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
@@ -788,7 +936,7 @@ class MarineChartEngine {
   _renderAnchorCircle(ctx, vessel) {
     const pt = this.geoToPixel(vessel.anchorPos.lat, vessel.anchorPos.lon);
     const radiusMeters = vessel.anchorRadius || 50;
-    const testPt = this.geoToPixel(vessel.anchorPos.lat, vessel.anchorPos.lon + (radiusMeters / 111320));
+    const testPt = this.geoToPixel(vessel.anchorPos.lat, vessel.anchorPos.lon + radiusMeters / 111320);
     const pixelRadius = Math.max(15, Math.abs(testPt.x - pt.x));
 
     ctx.save();
@@ -840,7 +988,7 @@ class MarineChartEngine {
   _renderScaleBar(ctx) {
     const nm = 2;
     const p1 = this.geoToPixel(this.centerLat, this.centerLon);
-    const p2 = this.geoToPixel(this.centerLat, this.centerLon + (nm / 60));
+    const p2 = this.geoToPixel(this.centerLat, this.centerLon + nm / 60);
     const barWidth = Math.abs(p2.x - p1.x);
 
     ctx.save();
@@ -873,7 +1021,7 @@ class MarineChartEngine {
     ctx.save();
     for (const route of this.routes) {
       if (!route.points || route.points.length < 2) continue;
-      const isActive = (route.id === this.activeRouteId);
+      const isActive = route.id === this.activeRouteId;
 
       // رسم مسار المرحلة
       ctx.beginPath();
@@ -913,7 +1061,7 @@ class MarineChartEngine {
           ctx.strokeStyle = isActive ? '#f59e0b' : 'rgba(56, 189, 248, 0.4)';
           ctx.lineWidth = 1;
           ctx.beginPath();
-          ctx.roundRect(midX - (txtWidth / 2) - 6, midY - 9, txtWidth + 12, 18, 4);
+          ctx.roundRect(midX - txtWidth / 2 - 6, midY - 9, txtWidth + 12, 18, 4);
           ctx.fill();
           ctx.stroke();
 
@@ -940,7 +1088,7 @@ class MarineChartEngine {
         if (r.points) {
           for (let i = 0; i < r.points.length; i++) {
             const p = r.points[i];
-            const isTarget = (r.id === this.activeRouteId && i === this.activeWaypointIndex);
+            const isTarget = r.id === this.activeRouteId && i === this.activeWaypointIndex;
             allWpts.push({ ...p, isTarget, routeName: r.name });
           }
         }
@@ -959,7 +1107,7 @@ class MarineChartEngine {
         ctx.strokeStyle = '#f59e0b';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        const pulse = 14 + (Math.sin(Date.now() / 200) * 4);
+        const pulse = 14 + Math.sin(Date.now() / 200) * 4;
         ctx.arc(p.x, p.y, pulse, 0, Math.PI * 2);
         ctx.stroke();
       }
@@ -1047,7 +1195,7 @@ class MarineChartEngine {
     ctx.strokeStyle = '#10b981';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(midX - (infoW / 2) - 8, midY + 12, infoW + 16, 20, 4);
+    ctx.roundRect(midX - infoW / 2 - 8, midY + 12, infoW + 16, 20, 4);
     ctx.fill();
     ctx.stroke();
 
@@ -1146,7 +1294,7 @@ class MarineChartEngine {
 
     // حساب المسافة الحقيقية بالأميال البحرية
     const dLat = (tLat - oLat) * 60;
-    const dLon = (tLon - oLon) * 60 * Math.cos(((oLat + tLat) / 2) * Math.PI / 180);
+    const dLon = (tLon - oLon) * 60 * Math.cos((((oLat + tLat) / 2) * Math.PI) / 180);
     const rangeNm = Math.sqrt(dLat * dLat + dLon * dLon);
 
     // حساب الاتجاه الحقيقي والمغناطيسي
@@ -1175,7 +1323,7 @@ class MarineChartEngine {
     ctx.moveTo(oP.x, oP.y);
 
     // تمديد الخط أبعد من نقطة الفأرة
-    const extendFactor = Math.max(1.5, (this.width / Math.max(radiusPx, 1)));
+    const extendFactor = Math.max(1.5, this.width / Math.max(radiusPx, 1));
     const extX = oP.x + dx * extendFactor;
     const extY = oP.y + dy * extendFactor;
     ctx.lineTo(extX, extY);
@@ -1219,7 +1367,8 @@ class MarineChartEngine {
    */
   _bindEvents() {
     let downTime = 0;
-    let downX = 0, downY = 0;
+    let downX = 0,
+      downY = 0;
 
     this.canvas.addEventListener('mousedown', (e) => {
       this.isDragging = true;
@@ -1290,38 +1439,42 @@ class MarineChartEngine {
     });
 
     // التقريب والتبعيد السلس بعجلة الفأرة نحو موقع المؤشر بدقة (Zoom to Cursor Position)
-    this.canvas.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      const rect = this.canvas.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
+    this.canvas.addEventListener(
+      'wheel',
+      (e) => {
+        e.preventDefault();
+        const rect = this.canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
 
-      // 1. الإحداثي الجغرافي الدقيق تحت مؤشر الفأرة قبل التكبير
-      const geoBefore = this.pixelToGeo(mouseX, mouseY);
+        // 1. الإحداثي الجغرافي الدقيق تحت مؤشر الفأرة قبل التكبير
+        const geoBefore = this.pixelToGeo(mouseX, mouseY);
 
-      // 2. حساب مستوى التكبير الجديد
-      const zoomDelta = e.deltaY < 0 ? 0.35 : -0.35;
-      const targetZoom = Math.max(3.0, Math.min(18.0, this.zoom + zoomDelta));
-      if (Math.abs(targetZoom - this.zoom) < 0.001) return;
+        // 2. حساب مستوى التكبير الجديد
+        const zoomDelta = e.deltaY < 0 ? 0.35 : -0.35;
+        const targetZoom = Math.max(3.0, Math.min(18.0, this.zoom + zoomDelta));
+        if (Math.abs(targetZoom - this.zoom) < 0.001) return;
 
-      this.zoom = targetZoom;
+        this.zoom = targetZoom;
 
-      // 3. تعديل مركز الخريطة ليبقى نفس الإحداثي تحت مؤشر الفأرة مباشرة
-      const scale = Math.pow(2, this.zoom) * 256;
-      this.centerLon = geoBefore.lon - ((mouseX - (this.width / 2)) * (2 * Math.PI) / scale) * (180 / Math.PI);
+        // 3. تعديل مركز الخريطة ليبقى نفس الإحداثي تحت مؤشر الفأرة مباشرة
+        const scale = Math.pow(2, this.zoom) * 256;
+        this.centerLon = geoBefore.lon - (((mouseX - this.width / 2) * (2 * Math.PI)) / scale) * (180 / Math.PI);
 
-      const latRad = (geoBefore.lat * Math.PI) / 180;
-      const yPoint = Math.log(Math.tan(Math.PI / 4 + latRad / 2));
-      const yCenter = yPoint + ((mouseY - (this.height / 2)) * (2 * Math.PI) / scale);
-      const centerLatRad = 2 * (Math.atan(Math.exp(yCenter)) - Math.PI / 4);
-      this.centerLat = (centerLatRad * 180) / Math.PI;
+        const latRad = (geoBefore.lat * Math.PI) / 180;
+        const yPoint = Math.log(Math.tan(Math.PI / 4 + latRad / 2));
+        const yCenter = yPoint + ((mouseY - this.height / 2) * (2 * Math.PI)) / scale;
+        const centerLatRad = 2 * (Math.atan(Math.exp(yCenter)) - Math.PI / 4);
+        this.centerLat = (centerLatRad * 180) / Math.PI;
 
-      // 4. إعادة رسم الخريطة فوراً بدون تأخير
-      if (typeof this.onRedrawNeeded === 'function') {
-        this.onRedrawNeeded();
-      }
-      this._triggerBoundsUpdate();
-    }, { passive: false });
+        // 4. إعادة رسم الخريطة فوراً بدون تأخير
+        if (typeof this.onRedrawNeeded === 'function') {
+          this.onRedrawNeeded();
+        }
+        this._triggerBoundsUpdate();
+      },
+      { passive: false }
+    );
 
     window.addEventListener('resize', () => {
       this.resize();
@@ -1459,7 +1612,7 @@ class MarineChartEngine {
    */
   _renderSeaNames(ctx) {
     if (!this.places || !this.places.seas) return;
-    const effZoom = this.zoom + (this.detailFactor * 0.3);
+    const effZoom = this.zoom + this.detailFactor * 0.3;
 
     ctx.save();
     for (const sea of this.places.seas) {
@@ -1484,7 +1637,7 @@ class MarineChartEngine {
    */
   _renderCountryNames(ctx) {
     if (!this.places || !this.places.countries) return;
-    const effZoom = this.zoom + (this.detailFactor * 0.35);
+    const effZoom = this.zoom + this.detailFactor * 0.35;
 
     ctx.save();
     for (const c of this.places.countries) {
@@ -1509,7 +1662,7 @@ class MarineChartEngine {
    */
   _renderCityNames(ctx) {
     if (!this.places || !this.places.cities) return;
-    const effZoom = this.zoom + (this.detailFactor * 0.4);
+    const effZoom = this.zoom + this.detailFactor * 0.4;
 
     ctx.save();
     for (const city of this.places.cities) {
@@ -1517,7 +1670,7 @@ class MarineChartEngine {
       const p = this.geoToPixel(city.lat, city.lon);
       if (p.x < -80 || p.x > this.width + 80 || p.y < -40 || p.y > this.height + 40) continue;
 
-      const isPort = (city.type === 'port');
+      const isPort = city.type === 'port';
 
       // رمز الميناء أو المدينة
       ctx.beginPath();
@@ -1549,4 +1702,3 @@ class MarineChartEngine {
 }
 
 window.MarineChartEngine = MarineChartEngine;
-

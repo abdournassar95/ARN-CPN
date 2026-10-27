@@ -4,7 +4,11 @@
   "description": "ARN Marine Navigator - نظام الملاحة وتخطيط المسارات البحرية التكتيكي السيادي لشركة ARN Technology",
   "main": "DesktopApp/main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "test": "node --test",
+    "lint": "eslint DesktopApp tests",
+    "format": "prettier --write \"DesktopApp/**/*.js\" \"tests/**/*.js\" \"eslint.config.js\"",
+    "format:check": "prettier --check \"DesktopApp/**/*.js\" \"tests/**/*.js\" \"eslint.config.js\""
   },
   "keywords": [
     "marine",
@@ -19,10 +23,17 @@
   ],
   "author": "Abdou Ragab Nassar (ARN Technology)",
   "license": "Proprietary",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "devDependencies": {
-    "electron": "^33.2.0"
+    "electron": "^33.2.0",
+    "eslint": "^9.0.0",
+    "globals": "^17.13.0",
+    "prettier": "^3.3.0"
   },
   "dependencies": {
+    "@serialport/parser-readline": "^13.0.0",
     "serialport": "^13.0.0",
     "sql.js": "^1.15.2"
   }

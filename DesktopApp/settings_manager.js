@@ -22,10 +22,10 @@ class SettingsManager {
         serial: { port: '', baudRate: 4800 },
         autoConnect: true
       },
-      chartDirectory: 'F:\\DIGITAL CHARTS IN ENC FORMAT\\CM93',
+      chartDirectory: '', // لا مسارات افتراضية على جهاز المطور — يحددها المستخدم
       vectorDisplay: {
         category: 'standard', // 'base', 'standard', 'all'
-        detailFactor: 0,      // منزلق التفاصيل من -5 إلى +5 (CM93 Detail Slider)
+        detailFactor: 0, // منزلق التفاصيل من -5 إلى +5 (CM93 Detail Slider)
         showCountryNames: true,
         showCityNames: true,
         showSeaNames: true,
@@ -78,7 +78,7 @@ class SettingsManager {
     try {
       const json = JSON.stringify(this.settings, null, 2);
       fs.writeFileSync(this.settingsFilePath, json, 'utf8');
-      
+
       // حفظ نسخة احتياطية في مجلد data إن أمكن
       try {
         const dataDir = path.dirname(this.fallbackPath);

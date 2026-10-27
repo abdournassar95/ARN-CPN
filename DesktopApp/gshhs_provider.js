@@ -13,6 +13,7 @@ class GSHHSProvider {
     this.isReady = false;
     this.fd = null;
     this.cellCache = new Map();
+    this.maxCachedCells = 512; // حد لحماية الذاكرة (إزاحة LRU)
 
     this._initReader();
   }
@@ -121,10 +122,15 @@ class GSHHSProvider {
           points: pts
         });
       }
-    } catch (readErr) {
+    } catch {
       // End of cell or boundary reached
     }
 
+    // إزاحة أقدم خلية عند تجاوز السقف (Map تحتفظ بترتيب الإدراج)
+    if (this.cellCache.size >= this.maxCachedCells) {
+      const oldestKey = this.cellCache.keys().next().value;
+      this.cellCache.delete(oldestKey);
+    }
     this.cellCache.set(cellKey, polys);
     return polys;
   }
@@ -173,7 +179,7 @@ class GSHHSProvider {
     if (this.fd) {
       try {
         fs.closeSync(this.fd);
-      } catch (e) {}
+      } catch {}
       this.fd = null;
     }
   }

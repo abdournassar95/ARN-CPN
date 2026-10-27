@@ -57,28 +57,43 @@ class S57Decoder {
         }
       }
 
-      console.log(`[S-57] Loaded catalog: ${this.objectClasses.size} object classes, ${this.attributeCodes.size} attributes.`);
+      console.log(
+        `[S-57] Loaded catalog: ${this.objectClasses.size} object classes, ${this.attributeCodes.size} attributes.`
+      );
     } catch (err) {
       console.warn('[S-57] Error loading catalog:', err.message);
     }
   }
 
   /**
-   * تحليل ملف S-57 (.000) بالكامل
+   * تحليل ملف S-57 (.000) بالكامل (قراءة متزامنة — للاختبارات)
    */
   parseFile(filePath) {
     if (!fs.existsSync(filePath)) {
       throw new Error(`File not found: ${filePath}`);
     }
-
     const buf = fs.readFileSync(filePath);
+    return this.parseBuffer(buf, filePath);
+  }
+
+  /**
+   * نسخة غير حاجبة لتحليل ملف S-57 (قراءة غير متزامنة)
+   */
+  async parseFileAsync(filePath) {
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`File not found: ${filePath}`);
+    }
+    const buf = await fs.promises.readFile(filePath);
+    return this.parseBuffer(buf, filePath);
+  }
+
+  parseBuffer(buf, filePath = 'memory.000') {
     let offset = 0;
 
-    let dspmScale = 50000;
+    const dspmScale = 50000;
     let comf = 10000000; // الإحداثيات مقسومة على 10,000,000 افتراضياً (1e-7 deg)
     let dsidTitle = path.basename(filePath);
-    let dsidEdition = '1';
-    let dsidIssueDate = '';
+    const dsidEdition = '1';
 
     // جداول السجلات المتجهة والميزات
     const vectorRecords = new Map(); // RCID -> { type, points: [[lat, lon], ...] }
@@ -115,8 +130,14 @@ class S57Decoder {
         const fields = [];
         while (dirOffset + entryLen <= dirEnd && buf[dirOffset] !== FT) {
           const tag = buf.toString('ascii', dirOffset, dirOffset + sizeFieldTag);
-          const fLen = parseInt(buf.toString('ascii', dirOffset + sizeFieldTag, dirOffset + sizeFieldTag + sizeFieldLength), 10);
-          const fPos = parseInt(buf.toString('ascii', dirOffset + sizeFieldTag + sizeFieldLength, dirOffset + entryLen), 10);
+          const fLen = parseInt(
+            buf.toString('ascii', dirOffset + sizeFieldTag, dirOffset + sizeFieldTag + sizeFieldLength),
+            10
+          );
+          const fPos = parseInt(
+            buf.toString('ascii', dirOffset + sizeFieldTag + sizeFieldLength, dirOffset + entryLen),
+            10
+          );
 
           if (!isNaN(fLen) && !isNaN(fPos)) {
             fields.push({ tag, length: fLen, position: fPos });
@@ -144,7 +165,7 @@ class S57Decoder {
                   comf = possibleComf;
                 }
               }
-            } catch (e) {}
+            } catch {}
           }
 
           // 2. معالجة هوية الخريطة DSID
@@ -153,7 +174,7 @@ class S57Decoder {
               const text = fieldBuf.toString('ascii');
               const parts = text.split(/\x1F|\x1E/);
               if (parts[0]) dsidTitle = parts[0].replace(/[^a-zA-Z0-9_\-\.]/g, '') || dsidTitle;
-            } catch (e) {}
+            } catch {}
           }
 
           // 3. معالجة معرّف السجل المتجه VRID
@@ -185,7 +206,7 @@ class S57Decoder {
           // 5. معالجة ميزات الخريطة FRID
           else if (field.tag === 'FRID') {
             if (fieldBuf.length >= 9) {
-              const rcnm = fieldBuf[0];
+              const _rcnm = fieldBuf[0];
               const rcid = fieldBuf.readUInt32LE(1);
               const prim = fieldBuf[5]; // 1: Point, 2: Line, 3: Area
               const objCode = fieldBuf.readUInt16LE(7); // OBJL تبدأ من البايت 7 بعد GRUP
@@ -261,7 +282,7 @@ class S57Decoder {
 
     for (const feat of featureRecords) {
       // استخراج الإحداثيات من السجلات المتجهة المرتبطة
-      let points = [];
+      const points = [];
       for (const ref of feat.spatialRefs) {
         const vRec = vectorRecords.get(`${ref.rcnm}_${ref.rcid}`) || vectorRecords.get(ref.rcid);
         if (vRec && vRec.points && vRec.points.length > 0) {
