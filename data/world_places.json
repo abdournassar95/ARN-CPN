@@ -1,0 +1,1558 @@
+{
+  "version": "1.0.0",
+  "totalEntities": 172,
+  "seas": [
+    {
+      "nameAr": "البحر الأبيض المتوسط",
+      "nameEn": "Mediterranean Sea",
+      "lat": 35.0,
+      "lon": 18.0,
+      "zoomMin": 4,
+      "zoomMax": 9,
+      "type": "sea"
+    },
+    {
+      "nameAr": "البحر الأحمر",
+      "nameEn": "Red Sea",
+      "lat": 22.0,
+      "lon": 38.0,
+      "zoomMin": 5,
+      "zoomMax": 10,
+      "type": "sea"
+    },
+    {
+      "nameAr": "الخليج العربي",
+      "nameEn": "Arabian Gulf",
+      "lat": 27.0,
+      "lon": 51.0,
+      "zoomMin": 5,
+      "zoomMax": 10,
+      "type": "gulf"
+    },
+    {
+      "nameAr": "خليج السويس",
+      "nameEn": "Gulf of Suez",
+      "lat": 28.5,
+      "lon": 33.2,
+      "zoomMin": 7,
+      "zoomMax": 14,
+      "type": "gulf"
+    },
+    {
+      "nameAr": "خليج العقبة",
+      "nameEn": "Gulf of Aqaba",
+      "lat": 28.8,
+      "lon": 34.7,
+      "zoomMin": 7,
+      "zoomMax": 14,
+      "type": "gulf"
+    },
+    {
+      "nameAr": "قناة السويس",
+      "nameEn": "Suez Canal",
+      "lat": 30.7,
+      "lon": 32.34,
+      "zoomMin": 8,
+      "zoomMax": 16,
+      "type": "canal"
+    },
+    {
+      "nameAr": "مضيق باب المندب",
+      "nameEn": "Bab-el-Mandeb Strait",
+      "lat": 12.58,
+      "lon": 43.33,
+      "zoomMin": 7,
+      "zoomMax": 14,
+      "type": "strait"
+    },
+    {
+      "nameAr": "مضيق هرمز",
+      "nameEn": "Strait of Hormuz",
+      "lat": 26.56,
+      "lon": 56.25,
+      "zoomMin": 7,
+      "zoomMax": 14,
+      "type": "strait"
+    },
+    {
+      "nameAr": "مضيق جبل طارق",
+      "nameEn": "Strait of Gibraltar",
+      "lat": 35.96,
+      "lon": -5.6,
+      "zoomMin": 7,
+      "zoomMax": 14,
+      "type": "strait"
+    },
+    {
+      "nameAr": "مضيق البوسفور",
+      "nameEn": "Bosphorus Strait",
+      "lat": 41.11,
+      "lon": 29.07,
+      "zoomMin": 8,
+      "zoomMax": 15,
+      "type": "strait"
+    },
+    {
+      "nameAr": "مضيق الدردنيل",
+      "nameEn": "Dardanelles Strait",
+      "lat": 40.21,
+      "lon": 26.43,
+      "zoomMin": 8,
+      "zoomMax": 15,
+      "type": "strait"
+    },
+    {
+      "nameAr": "مضيق ملقا",
+      "nameEn": "Strait of Malacca",
+      "lat": 2.5,
+      "lon": 101.5,
+      "zoomMin": 6,
+      "zoomMax": 12,
+      "type": "strait"
+    },
+    {
+      "nameAr": "قناة بنما",
+      "nameEn": "Panama Canal",
+      "lat": 9.1,
+      "lon": -79.7,
+      "zoomMin": 8,
+      "zoomMax": 15,
+      "type": "canal"
+    },
+    {
+      "nameAr": "بحر العرب",
+      "nameEn": "Arabian Sea",
+      "lat": 16.0,
+      "lon": 64.0,
+      "zoomMin": 4,
+      "zoomMax": 8,
+      "type": "sea"
+    },
+    {
+      "nameAr": "خليج عدن",
+      "nameEn": "Gulf of Aden",
+      "lat": 12.8,
+      "lon": 48.0,
+      "zoomMin": 6,
+      "zoomMax": 10,
+      "type": "gulf"
+    },
+    {
+      "nameAr": "خليج عمان",
+      "nameEn": "Gulf of Oman",
+      "lat": 24.5,
+      "lon": 58.5,
+      "zoomMin": 6,
+      "zoomMax": 10,
+      "type": "gulf"
+    },
+    {
+      "nameAr": "البحر الأسود",
+      "nameEn": "Black Sea",
+      "lat": 43.5,
+      "lon": 34.5,
+      "zoomMin": 5,
+      "zoomMax": 9,
+      "type": "sea"
+    },
+    {
+      "nameAr": "بحر قزوين",
+      "nameEn": "Caspian Sea",
+      "lat": 41.5,
+      "lon": 51.0,
+      "zoomMin": 5,
+      "zoomMax": 9,
+      "type": "sea"
+    },
+    {
+      "nameAr": "بحر البلطيق",
+      "nameEn": "Baltic Sea",
+      "lat": 58.0,
+      "lon": 20.0,
+      "zoomMin": 5,
+      "zoomMax": 9,
+      "type": "sea"
+    },
+    {
+      "nameAr": "بحر الشمال",
+      "nameEn": "North Sea",
+      "lat": 56.0,
+      "lon": 3.5,
+      "zoomMin": 5,
+      "zoomMax": 9,
+      "type": "sea"
+    },
+    {
+      "nameAr": "بحر المانش / القنال الإنجليزي",
+      "nameEn": "English Channel",
+      "lat": 50.0,
+      "lon": -1.5,
+      "zoomMin": 6,
+      "zoomMax": 11,
+      "type": "sea"
+    },
+    {
+      "nameAr": "المحيط الأطلسي الشمالي",
+      "nameEn": "North Atlantic Ocean",
+      "lat": 30.0,
+      "lon": -40.0,
+      "zoomMin": 3,
+      "zoomMax": 6,
+      "type": "ocean"
+    },
+    {
+      "nameAr": "المحيط الأطلسي الجنوبي",
+      "nameEn": "South Atlantic Ocean",
+      "lat": -25.0,
+      "lon": -20.0,
+      "zoomMin": 3,
+      "zoomMax": 6,
+      "type": "ocean"
+    },
+    {
+      "nameAr": "المحيط الهندي",
+      "nameEn": "Indian Ocean",
+      "lat": -10.0,
+      "lon": 75.0,
+      "zoomMin": 3,
+      "zoomMax": 6,
+      "type": "ocean"
+    },
+    {
+      "nameAr": "المحيط الهادئ الشمالي",
+      "nameEn": "North Pacific Ocean",
+      "lat": 30.0,
+      "lon": -160.0,
+      "zoomMin": 3,
+      "zoomMax": 6,
+      "type": "ocean"
+    },
+    {
+      "nameAr": "المحيط الهادئ الجنوبي",
+      "nameEn": "South Pacific Ocean",
+      "lat": -30.0,
+      "lon": -140.0,
+      "zoomMin": 3,
+      "zoomMax": 6,
+      "type": "ocean"
+    },
+    {
+      "nameAr": "البحر الكاريبي",
+      "nameEn": "Caribbean Sea",
+      "lat": 15.0,
+      "lon": -75.0,
+      "zoomMin": 5,
+      "zoomMax": 9,
+      "type": "sea"
+    },
+    {
+      "nameAr": "خليج المكسيك",
+      "nameEn": "Gulf of Mexico",
+      "lat": 25.0,
+      "lon": -90.0,
+      "zoomMin": 5,
+      "zoomMax": 9,
+      "type": "gulf"
+    },
+    {
+      "nameAr": "بحر الصين الجنوبي",
+      "nameEn": "South China Sea",
+      "lat": 14.0,
+      "lon": 114.0,
+      "zoomMin": 5,
+      "zoomMax": 9,
+      "type": "sea"
+    },
+    {
+      "nameAr": "بحر الصين الشرقي",
+      "nameEn": "East China Sea",
+      "lat": 29.0,
+      "lon": 125.0,
+      "zoomMin": 5,
+      "zoomMax": 9,
+      "type": "sea"
+    },
+    {
+      "nameAr": "بحر اليابان",
+      "nameEn": "Sea of Japan",
+      "lat": 39.0,
+      "lon": 134.0,
+      "zoomMin": 5,
+      "zoomMax": 9,
+      "type": "sea"
+    },
+    {
+      "nameAr": "خليج البنغال",
+      "nameEn": "Bay of Bengal",
+      "lat": 15.0,
+      "lon": 88.0,
+      "zoomMin": 5,
+      "zoomMax": 9,
+      "type": "sea"
+    }
+  ],
+  "countries": [
+    {
+      "nameAr": "مصر",
+      "nameEn": "Egypt",
+      "code": "EG",
+      "lat": 26.8,
+      "lon": 30.8,
+      "zoomMin": 4,
+      "zoomMax": 8
+    },
+    {
+      "nameAr": "السعودية",
+      "nameEn": "Saudi Arabia",
+      "code": "SA",
+      "lat": 24.0,
+      "lon": 45.0,
+      "zoomMin": 4,
+      "zoomMax": 8
+    },
+    {
+      "nameAr": "الإمارات",
+      "nameEn": "United Arab Emirates",
+      "code": "AE",
+      "lat": 24.0,
+      "lon": 54.0,
+      "zoomMin": 5,
+      "zoomMax": 9
+    },
+    {
+      "nameAr": "الكويت",
+      "nameEn": "Kuwait",
+      "code": "KW",
+      "lat": 29.3,
+      "lon": 47.6,
+      "zoomMin": 6,
+      "zoomMax": 10
+    },
+    {
+      "nameAr": "قطر",
+      "nameEn": "Qatar",
+      "code": "QA",
+      "lat": 25.3,
+      "lon": 51.2,
+      "zoomMin": 6,
+      "zoomMax": 10
+    },
+    {
+      "nameAr": "البحرين",
+      "nameEn": "Bahrain",
+      "code": "BH",
+      "lat": 26.0,
+      "lon": 50.55,
+      "zoomMin": 7,
+      "zoomMax": 11
+    },
+    {
+      "nameAr": "عمان",
+      "nameEn": "Oman",
+      "code": "OM",
+      "lat": 21.5,
+      "lon": 57.0,
+      "zoomMin": 5,
+      "zoomMax": 9
+    },
+    {
+      "nameAr": "اليمن",
+      "nameEn": "Yemen",
+      "code": "YE",
+      "lat": 15.5,
+      "lon": 48.5,
+      "zoomMin": 5,
+      "zoomMax": 9
+    },
+    {
+      "nameAr": "الأردن",
+      "nameEn": "Jordan",
+      "code": "JO",
+      "lat": 31.0,
+      "lon": 36.5,
+      "zoomMin": 6,
+      "zoomMax": 10
+    },
+    {
+      "nameAr": "السودان",
+      "nameEn": "Sudan",
+      "code": "SD",
+      "lat": 15.5,
+      "lon": 32.5,
+      "zoomMin": 4,
+      "zoomMax": 8
+    },
+    {
+      "nameAr": "إريتريا",
+      "nameEn": "Eritrea",
+      "code": "ER",
+      "lat": 15.3,
+      "lon": 39.0,
+      "zoomMin": 5,
+      "zoomMax": 9
+    },
+    {
+      "nameAr": "جيبوتي",
+      "nameEn": "Djibouti",
+      "code": "DJ",
+      "lat": 11.8,
+      "lon": 42.5,
+      "zoomMin": 6,
+      "zoomMax": 10
+    },
+    {
+      "nameAr": "الصومال",
+      "nameEn": "Somalia",
+      "code": "SO",
+      "lat": 5.15,
+      "lon": 46.2,
+      "zoomMin": 4,
+      "zoomMax": 8
+    },
+    {
+      "nameAr": "ليبيا",
+      "nameEn": "Libya",
+      "code": "LY",
+      "lat": 26.3,
+      "lon": 17.2,
+      "zoomMin": 4,
+      "zoomMax": 8
+    },
+    {
+      "nameAr": "تونس",
+      "nameEn": "Tunisia",
+      "code": "TN",
+      "lat": 34.0,
+      "lon": 9.5,
+      "zoomMin": 5,
+      "zoomMax": 9
+    },
+    {
+      "nameAr": "الجزائر",
+      "nameEn": "Algeria",
+      "code": "DZ",
+      "lat": 28.0,
+      "lon": 3.0,
+      "zoomMin": 4,
+      "zoomMax": 8
+    },
+    {
+      "nameAr": "المغرب",
+      "nameEn": "Morocco",
+      "code": "MA",
+      "lat": 32.0,
+      "lon": -6.0,
+      "zoomMin": 5,
+      "zoomMax": 9
+    },
+    {
+      "nameAr": "موريتانيا",
+      "nameEn": "Mauritania",
+      "code": "MR",
+      "lat": 20.2,
+      "lon": -10.5,
+      "zoomMin": 4,
+      "zoomMax": 8
+    },
+    {
+      "nameAr": "لبنان",
+      "nameEn": "Lebanon",
+      "code": "LB",
+      "lat": 33.8,
+      "lon": 35.8,
+      "zoomMin": 7,
+      "zoomMax": 11
+    },
+    {
+      "nameAr": "سوريا",
+      "nameEn": "Syria",
+      "code": "SY",
+      "lat": 35.0,
+      "lon": 38.5,
+      "zoomMin": 5,
+      "zoomMax": 9
+    },
+    {
+      "nameAr": "العراق",
+      "nameEn": "Iraq",
+      "code": "IQ",
+      "lat": 33.2,
+      "lon": 43.7,
+      "zoomMin": 5,
+      "zoomMax": 9
+    },
+    {
+      "nameAr": "تركيا",
+      "nameEn": "Turkey",
+      "code": "TR",
+      "lat": 39.0,
+      "lon": 35.0,
+      "zoomMin": 4,
+      "zoomMax": 8
+    },
+    {
+      "nameAr": "اليونان",
+      "nameEn": "Greece",
+      "code": "GR",
+      "lat": 39.0,
+      "lon": 22.0,
+      "zoomMin": 5,
+      "zoomMax": 9
+    },
+    {
+      "nameAr": "قبرص",
+      "nameEn": "Cyprus",
+      "code": "CY",
+      "lat": 35.0,
+      "lon": 33.0,
+      "zoomMin": 6,
+      "zoomMax": 10
+    },
+    {
+      "nameAr": "إيطاليا",
+      "nameEn": "Italy",
+      "code": "IT",
+      "lat": 42.5,
+      "lon": 12.5,
+      "zoomMin": 5,
+      "zoomMax": 9
+    },
+    {
+      "nameAr": "فرنسا",
+      "nameEn": "France",
+      "code": "FR",
+      "lat": 46.5,
+      "lon": 2.5,
+      "zoomMin": 4,
+      "zoomMax": 8
+    },
+    {
+      "nameAr": "إسبانيا",
+      "nameEn": "Spain",
+      "code": "ES",
+      "lat": 40.0,
+      "lon": -4.0,
+      "zoomMin": 4,
+      "zoomMax": 8
+    },
+    {
+      "nameAr": "البرتغال",
+      "nameEn": "Portugal",
+      "code": "PT",
+      "lat": 39.5,
+      "lon": -8.0,
+      "zoomMin": 5,
+      "zoomMax": 9
+    },
+    {
+      "nameAr": "المملكة المتحدة",
+      "nameEn": "United Kingdom",
+      "code": "GB",
+      "lat": 54.0,
+      "lon": -2.0,
+      "zoomMin": 4,
+      "zoomMax": 8
+    },
+    {
+      "nameAr": "أيرلندا",
+      "nameEn": "Ireland",
+      "code": "IE",
+      "lat": 53.0,
+      "lon": -8.0,
+      "zoomMin": 5,
+      "zoomMax": 9
+    },
+    {
+      "nameAr": "ألمانيا",
+      "nameEn": "Germany",
+      "code": "DE",
+      "lat": 51.0,
+      "lon": 10.0,
+      "zoomMin": 4,
+      "zoomMax": 8
+    },
+    {
+      "nameAr": "هولندا",
+      "nameEn": "Netherlands",
+      "code": "NL",
+      "lat": 52.3,
+      "lon": 5.5,
+      "zoomMin": 6,
+      "zoomMax": 10
+    },
+    {
+      "nameAr": "بلجيكا",
+      "nameEn": "Belgium",
+      "code": "BE",
+      "lat": 50.8,
+      "lon": 4.5,
+      "zoomMin": 6,
+      "zoomMax": 10
+    },
+    {
+      "nameAr": "الدنمارك",
+      "nameEn": "Denmark",
+      "code": "DK",
+      "lat": 56.0,
+      "lon": 10.0,
+      "zoomMin": 5,
+      "zoomMax": 9
+    },
+    {
+      "nameAr": "النرويج",
+      "nameEn": "Norway",
+      "code": "NO",
+      "lat": 62.0,
+      "lon": 10.0,
+      "zoomMin": 4,
+      "zoomMax": 8
+    },
+    {
+      "nameAr": "السويد",
+      "nameEn": "Sweden",
+      "code": "SE",
+      "lat": 62.0,
+      "lon": 15.0,
+      "zoomMin": 4,
+      "zoomMax": 8
+    },
+    {
+      "nameAr": "فنلندا",
+      "nameEn": "Finland",
+      "code": "FI",
+      "lat": 64.0,
+      "lon": 26.0,
+      "zoomMin": 4,
+      "zoomMax": 8
+    },
+    {
+      "nameAr": "روسيا",
+      "nameEn": "Russia",
+      "code": "RU",
+      "lat": 60.0,
+      "lon": 50.0,
+      "zoomMin": 3,
+      "zoomMax": 7
+    },
+    {
+      "nameAr": "الولايات المتحدة",
+      "nameEn": "United States",
+      "code": "US",
+      "lat": 38.0,
+      "lon": -97.0,
+      "zoomMin": 3,
+      "zoomMax": 7
+    },
+    {
+      "nameAr": "كندا",
+      "nameEn": "Canada",
+      "code": "CA",
+      "lat": 56.0,
+      "lon": -106.0,
+      "zoomMin": 3,
+      "zoomMax": 7
+    },
+    {
+      "nameAr": "البرازيل",
+      "nameEn": "Brazil",
+      "code": "BR",
+      "lat": -14.0,
+      "lon": -51.0,
+      "zoomMin": 3,
+      "zoomMax": 7
+    },
+    {
+      "nameAr": "الأرجنتين",
+      "nameEn": "Argentina",
+      "code": "AR",
+      "lat": -38.4,
+      "lon": -63.6,
+      "zoomMin": 4,
+      "zoomMax": 8
+    },
+    {
+      "nameAr": "الهند",
+      "nameEn": "India",
+      "code": "IN",
+      "lat": 20.6,
+      "lon": 78.9,
+      "zoomMin": 4,
+      "zoomMax": 8
+    },
+    {
+      "nameAr": "باكستان",
+      "nameEn": "Pakistan",
+      "code": "PK",
+      "lat": 30.3,
+      "lon": 69.3,
+      "zoomMin": 4,
+      "zoomMax": 8
+    },
+    {
+      "nameAr": "الصين",
+      "nameEn": "China",
+      "code": "CN",
+      "lat": 35.8,
+      "lon": 104.1,
+      "zoomMin": 3,
+      "zoomMax": 7
+    },
+    {
+      "nameAr": "اليابان",
+      "nameEn": "Japan",
+      "code": "JP",
+      "lat": 36.2,
+      "lon": 138.2,
+      "zoomMin": 4,
+      "zoomMax": 8
+    },
+    {
+      "nameAr": "كوريا الجنوبية",
+      "nameEn": "South Korea",
+      "code": "KR",
+      "lat": 36.0,
+      "lon": 127.8,
+      "zoomMin": 5,
+      "zoomMax": 9
+    },
+    {
+      "nameAr": "سنغافورة",
+      "nameEn": "Singapore",
+      "code": "SG",
+      "lat": 1.35,
+      "lon": 103.8,
+      "zoomMin": 7,
+      "zoomMax": 13
+    },
+    {
+      "nameAr": "ماليزيا",
+      "nameEn": "Malaysia",
+      "code": "MY",
+      "lat": 4.2,
+      "lon": 101.9,
+      "zoomMin": 5,
+      "zoomMax": 9
+    },
+    {
+      "nameAr": "إندونيسيا",
+      "nameEn": "Indonesia",
+      "code": "ID",
+      "lat": -0.78,
+      "lon": 113.9,
+      "zoomMin": 4,
+      "zoomMax": 8
+    },
+    {
+      "nameAr": "أستراليا",
+      "nameEn": "Australia",
+      "code": "AU",
+      "lat": -25.2,
+      "lon": 133.7,
+      "zoomMin": 3,
+      "zoomMax": 7
+    },
+    {
+      "nameAr": "جنوب أفريقيا",
+      "nameEn": "South Africa",
+      "code": "ZA",
+      "lat": -30.5,
+      "lon": 25.0,
+      "zoomMin": 4,
+      "zoomMax": 8
+    }
+  ],
+  "cities": [
+    {
+      "nameAr": "الإسكندرية",
+      "nameEn": "Alexandria",
+      "country": "EG",
+      "lat": 31.2001,
+      "lon": 29.9187,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "بورسعيد",
+      "nameEn": "Port Said",
+      "country": "EG",
+      "lat": 31.2653,
+      "lon": 32.3019,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "السويس",
+      "nameEn": "Suez",
+      "country": "EG",
+      "lat": 29.9668,
+      "lon": 32.5498,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "دمياط",
+      "nameEn": "Damietta",
+      "country": "EG",
+      "lat": 31.4175,
+      "lon": 31.8144,
+      "type": "port",
+      "zoomMin": 6
+    },
+    {
+      "nameAr": "شرم الشيخ",
+      "nameEn": "Sharm El Sheikh",
+      "country": "EG",
+      "lat": 27.9158,
+      "lon": 34.3299,
+      "type": "port",
+      "zoomMin": 6
+    },
+    {
+      "nameAr": "الغردقة",
+      "nameEn": "Hurghada",
+      "country": "EG",
+      "lat": 27.2579,
+      "lon": 33.8116,
+      "type": "port",
+      "zoomMin": 6
+    },
+    {
+      "nameAr": "سفاجا",
+      "nameEn": "Safaga",
+      "country": "EG",
+      "lat": 26.7292,
+      "lon": 33.9366,
+      "type": "port",
+      "zoomMin": 6
+    },
+    {
+      "nameAr": "مرسى علم",
+      "nameEn": "Marsa Alam",
+      "country": "EG",
+      "lat": 25.0754,
+      "lon": 34.8911,
+      "type": "port",
+      "zoomMin": 6
+    },
+    {
+      "nameAr": "مرسى مطروح",
+      "nameEn": "Marsa Matruh",
+      "country": "EG",
+      "lat": 31.3543,
+      "lon": 27.2373,
+      "type": "port",
+      "zoomMin": 6
+    },
+    {
+      "nameAr": "القاهرة",
+      "nameEn": "Cairo",
+      "country": "EG",
+      "lat": 30.0444,
+      "lon": 31.2357,
+      "type": "capital",
+      "zoomMin": 6
+    },
+    {
+      "nameAr": "نويبع",
+      "nameEn": "Nuweiba",
+      "country": "EG",
+      "lat": 29.0069,
+      "lon": 34.6653,
+      "type": "port",
+      "zoomMin": 7
+    },
+    {
+      "nameAr": "طابا",
+      "nameEn": "Taba",
+      "country": "EG",
+      "lat": 29.4925,
+      "lon": 34.8953,
+      "type": "port",
+      "zoomMin": 7
+    },
+    {
+      "nameAr": "العريش",
+      "nameEn": "Arish",
+      "country": "EG",
+      "lat": 31.1316,
+      "lon": 33.7984,
+      "type": "port",
+      "zoomMin": 7
+    },
+    {
+      "nameAr": "جدة الإسلامي",
+      "nameEn": "Jeddah Islamic Port",
+      "country": "SA",
+      "lat": 21.4858,
+      "lon": 39.1925,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "ينبع التجارية",
+      "nameEn": "Yanbu Port",
+      "country": "SA",
+      "lat": 24.0891,
+      "lon": 38.0637,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "جازان",
+      "nameEn": "Jazan Port",
+      "country": "SA",
+      "lat": 16.8892,
+      "lon": 42.5511,
+      "type": "port",
+      "zoomMin": 6
+    },
+    {
+      "nameAr": "الدمام",
+      "nameEn": "Dammam Port",
+      "country": "SA",
+      "lat": 26.4344,
+      "lon": 50.1033,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "الجبيل التجارية",
+      "nameEn": "Jubail Port",
+      "country": "SA",
+      "lat": 27.0046,
+      "lon": 49.6601,
+      "type": "port",
+      "zoomMin": 6
+    },
+    {
+      "nameAr": "رأس تنورة",
+      "nameEn": "Ras Tanura",
+      "country": "SA",
+      "lat": 26.6439,
+      "lon": 50.1606,
+      "type": "port",
+      "zoomMin": 6
+    },
+    {
+      "nameAr": "ضباء",
+      "nameEn": "Duba Port",
+      "country": "SA",
+      "lat": 27.3514,
+      "lon": 35.6997,
+      "type": "port",
+      "zoomMin": 6
+    },
+    {
+      "nameAr": "الرياض",
+      "nameEn": "Riyadh",
+      "country": "SA",
+      "lat": 24.7136,
+      "lon": 46.6753,
+      "type": "capital",
+      "zoomMin": 6
+    },
+    {
+      "nameAr": "نيوم (أوكساجون)",
+      "nameEn": "NEOM / Oxagon Port",
+      "country": "SA",
+      "lat": 27.84,
+      "lon": 35.15,
+      "type": "port",
+      "zoomMin": 7
+    },
+    {
+      "nameAr": "دبي (جبل علي)",
+      "nameEn": "Dubai / Jebel Ali Port",
+      "country": "AE",
+      "lat": 25.0069,
+      "lon": 55.0601,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "أبو ظبي (ميناء خليفة)",
+      "nameEn": "Abu Dhabi / Khalifa Port",
+      "country": "AE",
+      "lat": 24.8119,
+      "lon": 54.6739,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "الفجيرة",
+      "nameEn": "Fujairah Port",
+      "country": "AE",
+      "lat": 25.1783,
+      "lon": 56.3575,
+      "type": "port",
+      "zoomMin": 6
+    },
+    {
+      "nameAr": "الشارقة",
+      "nameEn": "Sharjah",
+      "country": "AE",
+      "lat": 25.3573,
+      "lon": 55.4033,
+      "type": "port",
+      "zoomMin": 6
+    },
+    {
+      "nameAr": "الدوحة (ميناء حمد)",
+      "nameEn": "Doha / Hamad Port",
+      "country": "QA",
+      "lat": 25.0139,
+      "lon": 51.6186,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "المنامة (ميناء سلمان)",
+      "nameEn": "Manama / Mina Salman",
+      "country": "BH",
+      "lat": 26.2089,
+      "lon": 50.6053,
+      "type": "port",
+      "zoomMin": 6
+    },
+    {
+      "nameAr": "الكويت (ميناء الشويخ)",
+      "nameEn": "Kuwait / Shuwaikh Port",
+      "country": "KW",
+      "lat": 29.3556,
+      "lon": 47.9256,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "مسقط (السلطان قابوس)",
+      "nameEn": "Muscat / Sultan Qaboos",
+      "country": "OM",
+      "lat": 23.6264,
+      "lon": 58.5636,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "صلالة",
+      "nameEn": "Salalah Port",
+      "country": "OM",
+      "lat": 16.9419,
+      "lon": 54.0089,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "صحار",
+      "nameEn": "Sohar Port",
+      "country": "OM",
+      "lat": 24.4989,
+      "lon": 56.6289,
+      "type": "port",
+      "zoomMin": 6
+    },
+    {
+      "nameAr": "العقبة",
+      "nameEn": "Aqaba Port",
+      "country": "JO",
+      "lat": 29.5267,
+      "lon": 35.0078,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "عدن",
+      "nameEn": "Aden Port",
+      "country": "YE",
+      "lat": 12.7856,
+      "lon": 44.9789,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "الحديدة",
+      "nameEn": "Hodeidah Port",
+      "country": "YE",
+      "lat": 14.7978,
+      "lon": 42.9544,
+      "type": "port",
+      "zoomMin": 6
+    },
+    {
+      "nameAr": "بورتسودان",
+      "nameEn": "Port Sudan",
+      "country": "SD",
+      "lat": 19.6158,
+      "lon": 37.2164,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "مصوع",
+      "nameEn": "Massawa",
+      "country": "ER",
+      "lat": 15.6083,
+      "lon": 39.4678,
+      "type": "port",
+      "zoomMin": 6
+    },
+    {
+      "nameAr": "جيبوتي",
+      "nameEn": "Djibouti Port",
+      "country": "DJ",
+      "lat": 11.6025,
+      "lon": 43.1369,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "بربرة",
+      "nameEn": "Berbera Port",
+      "country": "SO",
+      "lat": 10.4358,
+      "lon": 45.0142,
+      "type": "port",
+      "zoomMin": 6
+    },
+    {
+      "nameAr": "مقديشو",
+      "nameEn": "Mogadishu Port",
+      "country": "SO",
+      "lat": 2.0333,
+      "lon": 45.3333,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "طرابلس",
+      "nameEn": "Tripoli Port",
+      "country": "LY",
+      "lat": 32.8967,
+      "lon": 13.1867,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "بنغازي",
+      "nameEn": "Benghazi Port",
+      "country": "LY",
+      "lat": 32.1167,
+      "lon": 20.0667,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "مصراتة",
+      "nameEn": "Misrata Port",
+      "country": "LY",
+      "lat": 32.3753,
+      "lon": 15.0906,
+      "type": "port",
+      "zoomMin": 6
+    },
+    {
+      "nameAr": "تونس (حلق الوادي)",
+      "nameEn": "Tunis / La Goulette",
+      "country": "TN",
+      "lat": 36.8189,
+      "lon": 10.3056,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "صفاقس",
+      "nameEn": "Sfax Port",
+      "country": "TN",
+      "lat": 34.7406,
+      "lon": 10.7603,
+      "type": "port",
+      "zoomMin": 6
+    },
+    {
+      "nameAr": "الجزائر العاصمة",
+      "nameEn": "Algiers Port",
+      "country": "DZ",
+      "lat": 36.7538,
+      "lon": 3.0588,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "وهران",
+      "nameEn": "Oran Port",
+      "country": "DZ",
+      "lat": 35.7056,
+      "lon": -0.6431,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "طنجة المتوسط",
+      "nameEn": "Tanger Med Port",
+      "country": "MA",
+      "lat": 35.8903,
+      "lon": -5.5039,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "الدار البيضاء",
+      "nameEn": "Casablanca Port",
+      "country": "MA",
+      "lat": 33.6,
+      "lon": -7.6167,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "أغادير",
+      "nameEn": "Agadir Port",
+      "country": "MA",
+      "lat": 30.4167,
+      "lon": -9.6,
+      "type": "port",
+      "zoomMin": 6
+    },
+    {
+      "nameAr": "نواكشوط",
+      "nameEn": "Nouakchott Port",
+      "country": "MR",
+      "lat": 18.0333,
+      "lon": -16.0333,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "بيروت",
+      "nameEn": "Beirut Port",
+      "country": "LB",
+      "lat": 33.9014,
+      "lon": 35.5189,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "اللاذقية",
+      "nameEn": "Latakia Port",
+      "country": "SY",
+      "lat": 35.5317,
+      "lon": 35.7667,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "البصرة (أم قصر)",
+      "nameEn": "Basra / Umm Qasr",
+      "country": "IQ",
+      "lat": 30.0333,
+      "lon": 47.9333,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "إسطنبول",
+      "nameEn": "Istanbul Port",
+      "country": "TR",
+      "lat": 41.0082,
+      "lon": 28.9784,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "إزمير",
+      "nameEn": "Izmir Port",
+      "country": "TR",
+      "lat": 38.4333,
+      "lon": 27.15,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "مرسين",
+      "nameEn": "Mersin Port",
+      "country": "TR",
+      "lat": 36.8,
+      "lon": 34.6333,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "بيرايوس (أثينا)",
+      "nameEn": "Piraeus Port",
+      "country": "GR",
+      "lat": 37.9431,
+      "lon": 23.6469,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "ليماسول",
+      "nameEn": "Limassol Port",
+      "country": "CY",
+      "lat": 34.6667,
+      "lon": 33.0333,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "فاليتا",
+      "nameEn": "Valletta Grand Harbour",
+      "country": "MT",
+      "lat": 35.8978,
+      "lon": 14.5125,
+      "type": "port",
+      "zoomMin": 6
+    },
+    {
+      "nameAr": "جبل طارق",
+      "nameEn": "Gibraltar Port",
+      "country": "GI",
+      "lat": 36.1408,
+      "lon": -5.3536,
+      "type": "port",
+      "zoomMin": 6
+    },
+    {
+      "nameAr": "مرسيليا",
+      "nameEn": "Marseille Port",
+      "country": "FR",
+      "lat": 43.2965,
+      "lon": 5.3698,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "لو هافر",
+      "nameEn": "Le Havre Port",
+      "country": "FR",
+      "lat": 49.4939,
+      "lon": 0.1078,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "برشلونة",
+      "nameEn": "Barcelona Port",
+      "country": "ES",
+      "lat": 41.35,
+      "lon": 2.1667,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "فالنسيا",
+      "nameEn": "Valencia Port",
+      "country": "ES",
+      "lat": 39.45,
+      "lon": -0.3167,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "الجزيرة الخضراء",
+      "nameEn": "Algeciras Port",
+      "country": "ES",
+      "lat": 36.1333,
+      "lon": -5.45,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "لشبونة",
+      "nameEn": "Lisbon Port",
+      "country": "PT",
+      "lat": 38.7167,
+      "lon": -9.1333,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "جنوى",
+      "nameEn": "Genoa Port",
+      "country": "IT",
+      "lat": 44.4056,
+      "lon": 8.9464,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "نابولي",
+      "nameEn": "Naples Port",
+      "country": "IT",
+      "lat": 40.8333,
+      "lon": 14.25,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "ترييستي",
+      "nameEn": "Trieste Port",
+      "country": "IT",
+      "lat": 45.65,
+      "lon": 13.7667,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "روتردام",
+      "nameEn": "Rotterdam Port",
+      "country": "NL",
+      "lat": 51.9244,
+      "lon": 4.4777,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "أنتويرب",
+      "nameEn": "Antwerp Port",
+      "country": "BE",
+      "lat": 51.2194,
+      "lon": 4.4025,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "هامبورغ",
+      "nameEn": "Hamburg Port",
+      "country": "DE",
+      "lat": 53.5511,
+      "lon": 9.9937,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "لندن",
+      "nameEn": "Port of London",
+      "country": "GB",
+      "lat": 51.5074,
+      "lon": -0.1278,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "ساوثهامبتون",
+      "nameEn": "Southampton Port",
+      "country": "GB",
+      "lat": 50.9097,
+      "lon": -1.4044,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "سنغافورة",
+      "nameEn": "Port of Singapore",
+      "country": "SG",
+      "lat": 1.29027,
+      "lon": 103.8519,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "شنغهاي",
+      "nameEn": "Port of Shanghai",
+      "country": "CN",
+      "lat": 31.2304,
+      "lon": 121.4737,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "هونغ كونغ",
+      "nameEn": "Hong Kong Port",
+      "country": "HK",
+      "lat": 22.3193,
+      "lon": 114.1694,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "بوسان",
+      "nameEn": "Busan Port",
+      "country": "KR",
+      "lat": 35.1796,
+      "lon": 129.0756,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "طوكيو",
+      "nameEn": "Tokyo Port",
+      "country": "JP",
+      "lat": 35.6762,
+      "lon": 139.6503,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "مومباي",
+      "nameEn": "Mumbai Port",
+      "country": "IN",
+      "lat": 18.94,
+      "lon": 72.86,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "كراتشي",
+      "nameEn": "Karachi Port",
+      "country": "PK",
+      "lat": 24.8607,
+      "lon": 67.0011,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "كولومبو",
+      "nameEn": "Colombo Port",
+      "country": "LK",
+      "lat": 6.9271,
+      "lon": 79.8612,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "نيويورك",
+      "nameEn": "Port of New York",
+      "country": "US",
+      "lat": 40.7128,
+      "lon": -74.006,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "ميامي",
+      "nameEn": "PortMiami",
+      "country": "US",
+      "lat": 25.7743,
+      "lon": -80.1706,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "لوس أنجلوس",
+      "nameEn": "Port of Los Angeles",
+      "country": "US",
+      "lat": 33.7432,
+      "lon": -118.2673,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "كيب تاون",
+      "nameEn": "Port of Cape Town",
+      "country": "ZA",
+      "lat": -33.9249,
+      "lon": 18.4241,
+      "type": "port",
+      "zoomMin": 5
+    },
+    {
+      "nameAr": "سيدني",
+      "nameEn": "Sydney Harbour",
+      "country": "AU",
+      "lat": -33.8688,
+      "lon": 151.2093,
+      "type": "port",
+      "zoomMin": 5
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "name": "arn-marine-nav",
+  "version": "1.0.0",
+  "description": "ARN Marine Navigator - نظام الملاحة وتخطيط المسارات البحرية التكتيكي السيادي لشركة ARN Technology",
+  "main": "DesktopApp/main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "keywords": [
+    "marine",
+    "navigation",
+    "opencpn",
+    "charts",
+    "s57",
+    "bsb",
+    "nmea",
+    "ais",
+    "offline"
+  ],
+  "author": "Abdou Ragab Nassar (ARN Technology)",
+  "license": "Proprietary",
+  "devDependencies": {
+    "electron": "^33.2.0"
+  },
+  "dependencies": {
+    "serialport": "^13.0.0",
+    "sql.js": "^1.15.2"
+  }
+}

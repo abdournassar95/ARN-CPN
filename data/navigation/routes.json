@@ -1,0 +1,54 @@
+{
+  "routes": [
+    {
+      "id": "rte_1793107516785_794",
+      "name": "Red Sea Test Route",
+      "navType": "rhumb",
+      "points": [
+        {
+          "id": "p1",
+          "name": "Strait of Gubal",
+          "lat": 27.65,
+          "lon": 33.85
+        },
+        {
+          "id": "p2",
+          "name": "Ras Mohammed",
+          "lat": 27.72,
+          "lon": 34.25
+        },
+        {
+          "id": "p3",
+          "name": "Tiran Strait",
+          "lat": 27.98,
+          "lon": 34.46
+        }
+      ],
+      "legs": [
+        {
+          "fromIndex": 0,
+          "toIndex": 1,
+          "fromName": "Strait of Gubal",
+          "toName": "Ras Mohammed",
+          "distanceNm": 21.66,
+          "bearingTrue": 78.8
+        },
+        {
+          "fromIndex": 1,
+          "toIndex": 2,
+          "fromName": "Ras Mohammed",
+          "toName": "Tiran Strait",
+          "distanceNm": 19.17,
+          "bearingTrue": 35.5
+        }
+      ],
+      "totalDistanceNm": 40.83,
+      "estimatedTimeHours": 0,
+      "createdAt": "2026-10-27T13:25:16.785Z"
+    }
+  ],
+  "waypoints": [],
+  "activeRouteId": "rte_1793107516785_794",
+  "activeWaypointIndex": 0,
+  "savedAt": "2026-10-27T13:25:16.788Z"
+}

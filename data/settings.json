@@ -1,0 +1,33 @@
+{
+  "lastConnection": {
+    "type": "tcp",
+    "tcp": {
+      "host": "192.168.1.1",
+      "port": 10110
+    },
+    "udp": {
+      "port": 10110
+    },
+    "serial": {
+      "port": "",
+      "baudRate": 4800
+    },
+    "autoConnect": true
+  },
+  "chartDirectory": "F:\\DIGITAL CHARTS IN ENC FORMAT\\CM93",
+  "vectorDisplay": {
+    "category": "all",
+    "detailFactor": 0,
+    "showCountryNames": true,
+    "showCityNames": true,
+    "showSeaNames": true,
+    "showDepthContours": true,
+    "showSoundings": true,
+    "showNavAids": true,
+    "showLightSectors": true,
+    "showHazards": true,
+    "showChartOutlines": false,
+    "showTides": true,
+    "rasterOpacity": 1
+  }
+}

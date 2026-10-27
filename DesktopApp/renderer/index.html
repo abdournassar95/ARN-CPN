@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARN Marine Navigator</title>
+  <!-- Google Fonts: Cairo & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- Styles -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="mode-dark-glass">
+
+  <!-- شريط العنوان المخصص للشباك -->
+  <header class="titlebar">
+    <div class="titlebar-brand">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <polygon points="12 2 15 12 12 10 9 12 12 2" fill="#38bdf8"/>
+        <polygon points="12 22 9 12 12 14 15 12 12 22" fill="#64748b"/>
+      </svg>
+      <span>ARN Marine Navigator</span>
+      <span class="brand-badge">100% OFFLINE</span>
+    </div>
+    
+    <div class="titlebar-controls">
+      <button class="win-btn" id="btnMin" title="تصغير">&#8722;</button>
+      <button class="win-btn" id="btnMax" title="تكبير">&#9633;</button>
+      <button class="win-btn close" id="btnClose" title="إغلاق">&#10005;</button>
+    </div>
+  </header>
+
+  <!-- شريط العدادات والمعلومات التكتيكي العلوي (Real Telemetry HUD) -->
+  <section class="hud-topbar">
+    <div class="telemetry-strip">
+      <!-- السرعة فوق القاع SOG -->
+      <div class="telemetry-card">
+        <span class="telemetry-label">السرعة (SOG)</span>
+        <div>
+          <span class="telemetry-value" id="valSOG">--.-</span>
+          <span class="telemetry-unit">KTS</span>
+        </div>
+      </div>
+
+      <!-- الاتجاه فوق القاع COG -->
+      <div class="telemetry-card">
+        <span class="telemetry-label">المسار (COG)</span>
+        <div>
+          <span class="telemetry-value" id="valCOG">---°</span>
+          <span class="telemetry-unit">T</span>
+        </div>
+      </div>
+
+      <!-- اتجاه مقدمة السفينة HDG -->
+      <div class="telemetry-card">
+        <span class="telemetry-label">البوصلة (HDG)</span>
+        <div>
+          <span class="telemetry-value" id="valHDG">---°</span>
+          <span class="telemetry-unit">M</span>
+        </div>
+      </div>
+
+      <!-- عمق المياه -->
+      <div class="telemetry-card">
+        <span class="telemetry-label">العمق (DEPTH)</span>
+        <div>
+          <span class="telemetry-value" id="valDepth">--.-</span>
+          <span class="telemetry-unit">M</span>
+        </div>
+      </div>
+
+      <!-- سرعة وزاوية الرياح -->
+      <div class="telemetry-card">
+        <span class="telemetry-label">الرياح (WIND)</span>
+        <div>
+          <span class="telemetry-value" id="valWind">--.-</span>
+          <span class="telemetry-unit">KTS</span>
+        </div>
+      </div>
+
+      <!-- الانحراف المغناطيسي الحقيقي WMM -->
+      <div class="telemetry-card">
+        <span class="telemetry-label">الانحراف (VAR)</span>
+        <div>
+          <span class="telemetry-value" id="valVar">--.-</span>
+          <span class="telemetry-unit" id="unitVar">WMM</span>
+        </div>
+      </div>
+
+      <!-- الإحداثيات الجغرافية اللحظية -->
+      <div class="telemetry-card pos-card">
+        <span class="telemetry-label">الموقع الجغرافي (GPS)</span>
+        <div class="pos-value" id="valPOS">في انتظار إشارة GPS...</div>
+      </div>
+    </div>
+
+    <!-- أزرار الإجراءات السريعة والسلامة -->
+    <div class="hud-actions">
+      <!-- زر رجل في البحر MOB -->
+      <button class="hud-btn btn-mob" id="btnMOB" title="إسقاط نقطة طوارئ رجل في البحر">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="5" r="3"/>
+          <path d="M12 8v8m-4-4l4 4 4-4"/>
+        </svg>
+        <span>M.O.B</span>
+      </button>
+
+      <!-- زر مراقبة المخطاف -->
+      <button class="hud-btn btn-anchor" id="btnAnchor" title="تفعيل إنذار مراقبة المخطاف عند الرسو">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="5" r="3"/>
+          <line x1="12" y1="8" x2="12" y2="21"/>
+          <path d="M5 12H2a10 10 0 0 0 20 0h-3"/>
+        </svg>
+        <span>المخطاف</span>
+      </button>
+
+      <!-- زر مخطط المسارات والنقاط الإرشادية والـ GPX -->
+      <button class="hud-btn" id="btnOpenRoutes" title="تخطيط المسارات والنقاط الإرشادية وملفات GPX والطيار الآلي">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="6" cy="19" r="3"/>
+          <path d="M9 19h8.5a4.5 4.5 0 0 0 0-9H7a3 3 0 0 1 0-6h11"/>
+          <circle cx="18" cy="5" r="3"/>
+        </svg>
+        <span>المسارات</span>
+      </button>
+
+      <!-- زر مسطرة القياس التكتيكية EBL / VRM -->
+      <button class="hud-btn" id="btnToggleEblVrm" title="مسطرة قياس الاتجاه والمسافة البحرية EBL/VRM">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="9"/>
+          <line x1="12" y1="3" x2="12" y2="21"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+        </svg>
+        <span id="eblVrmText">EBL/VRM</span>
+      </button>
+
+      <!-- مدير الخرائط المحلية -->
+      <button class="hud-btn" id="btnOpenCharts" title="إدارة وفحص مجلدات الخرائط البحرية المحلية">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
+          <line x1="8" y1="2" x2="8" y2="18"/>
+          <line x1="16" y1="6" x2="16" y2="22"/>
+        </svg>
+        <span>الخرائط</span>
+      </button>
+
+      <!-- زر التحكم في مستويات العرض وتفاصيل الخريطة الملاحية (ECDIS & CM93 Display Options) -->
+      <button class="hud-btn" id="btnDisplayOptions" title="التحكم في تفاصيل الخريطة والأسماء ومستويات العرض (OpenCPN Style)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="4" y1="21" x2="4" y2="14"/>
+          <line x1="4" y1="10" x2="4" y2="3"/>
+          <line x1="12" y1="21" x2="12" y2="12"/>
+          <line x1="12" y1="8" x2="12" y2="3"/>
+          <line x1="20" y1="21" x2="20" y2="16"/>
+          <line x1="20" y1="12" x2="20" y2="3"/>
+          <line x1="1" y1="14" x2="7" y2="14"/>
+          <line x1="9" y1="8" x2="15" y2="8"/>
+          <line x1="17" y1="16" x2="23" y2="16"/>
+        </svg>
+        <span id="displayOptionsText">التفاصيل</span>
+      </button>
+
+      <!-- زر المد والجزر والتيارات -->
+      <button class="hud-btn" id="btnOpenTides" title="توقعات المد والجزر والتيارات البحرية (XTide)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M2 12c4-8 8-8 12 0s8 8 12 0"/>
+        </svg>
+        <span>المد والجزر</span>
+      </button>
+
+      <!-- زر ربط الأجهزة الملاحية ومستقبلات GPS / AIS الحقيقية -->
+      <button class="hud-btn" id="btnConnections" title="ربط أجهزة الـ GPS ومستقبلات AIS الحقيقية عبر Serial أو UDP أو TCP">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+          <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+          <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+          <circle cx="12" cy="20" r="1"/>
+        </svg>
+        <span id="connStatusText">ربط الأجهزة</span>
+      </button>
+
+      <!-- زر كتم أو تشغيل الصوت الملاحي -->
+      <button class="hud-btn" id="btnToggleSound" title="تشغيل أو كتم صافرات الإنذار البحري">
+        <span id="soundIcon">&#128266;</span>
+      </button>
+
+      <!-- زر عارض الطقس والرياح الحركية (GRIB Weather) -->
+      <button class="hud-btn" id="btnToggleWeather" title="عرض جزيئات الرياح والضغط الجوي التفاعلي (GRIB)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
+        </svg>
+        <span id="weatherBtnText">الطقس (GRIB)</span>
+      </button>
+
+      <!-- محدد أوضاع الألوان (Day / Dusk / Night) -->
+      <div class="mode-selector">
+        <button class="mode-btn active" data-mode="night" title="الوضع الزجاجي الداكن">ليلي</button>
+        <button class="mode-btn" data-mode="night-red" title="نمط الأشعة الحمراء لحماية العين">أحمر</button>
+        <button class="mode-btn" data-mode="day" title="الوضع النهاري الساطع">نهاري</button>
+      </div>
+
+      <!-- زر حول البرنامج -->
+      <button class="hud-btn" id="btnAbout" title="معلومات وتواصل شركة ARN Technology">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="16" x2="12" y2="12"/>
+          <line x1="12" y1="8" x2="12.01" y2="8"/>
+        </svg>
+        <span>حول</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- شريط إنذار الطوارئ الملاحي الصوتي والمرئي -->
+  <div class="marine-alarm-banner" id="alarmBanner" style="display: none;">
+    <div class="alarm-icon-pulse">&#9888;</div>
+    <div class="alarm-content">
+      <span class="alarm-title" id="alarmTitle">إنذار بحري خطير</span>
+      <span class="alarm-desc" id="alarmDesc">تحذير تصادم وشيك مع هدف AIS</span>
+    </div>
+    <button class="alarm-ack-btn" id="btnAckAlarm">إسكات وتأكيد</button>
+  </div>
+
+  <!-- مساحة العرض المركزية للخريطة البحرية -->
+  <main class="map-viewport">
+    <canvas id="marineCanvas"></canvas>
+
+    <!-- أزرار التحكم بالتكبير والتصغير التكتيكية (On-screen Tactical Zoom Controls) -->
+    <div class="tactical-zoom-controls" id="zoomControls">
+      <button class="zoom-btn" id="btnZoomIn" title="تقريب الخريطة (Zoom In)">+</button>
+      <div class="zoom-level-badge" id="zoomLevelBadge">10x</div>
+      <button class="zoom-btn" id="btnZoomOut" title="تبعيد الخريطة (Zoom Out)">&#8722;</button>
+      <button class="zoom-btn reset-btn" id="btnNorthUp" title="توجيه الشمال لأعلى (North Up)">&#11014;</button>
+    </div>
+
+    <!-- شريط وضع رسم المسار التفاعلي بالفأرة -->
+    <div class="route-drawing-bar" id="routeDrawingBar" style="display: none;">
+      <span>وضع رسم المسار: انقر على الخريطة لإضافة النقاط</span>
+      <button class="hud-btn" id="btnFinishRoute" style="background: rgba(16, 185, 129, 0.3); border-color: var(--accent-green);">حفظ وإنهاء المسار</button>
+      <button class="hud-btn" id="btnCancelRoute" style="background: rgba(239, 68, 68, 0.3); border-color: #ef4444;">إلغاء</button>
+    </div>
+
+    <!-- شريط إحداثيات مؤشر الفأرة الحية -->
+    <div class="cursor-coords-hud" id="cursorCoordsHud">
+      <span id="cursorCoordsText">--° --.--' N , ---° --.--' E</span>
+    </div>
+
+    <!-- بوصلة Compass Rose في الزاوية اليمنى العليا -->
+    <div class="compass-widget" id="compassWidget">
+      <svg width="120" height="120" viewBox="0 0 100 100" id="compassSvg">
+        <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(56,189,248,0.2)" stroke-width="2"/>
+        <circle cx="50" cy="50" r="3" fill="#38bdf8"/>
+        <g id="compassTicks" stroke="rgba(56,189,248,0.4)" stroke-width="1">
+          <line x1="50" y1="5" x2="50" y2="15"/>
+          <line x1="95" y1="50" x2="85" y2="50"/>
+          <line x1="50" y1="95" x2="50" y2="85"/>
+          <line x1="5" y1="50" x2="15" y2="50"/>
+        </g>
+        <text x="50" y="24" fill="#ef4444" font-size="9" font-weight="700" text-anchor="middle">N</text>
+        <text x="78" y="53" fill="#38bdf8" font-size="8" text-anchor="middle">E</text>
+        <text x="50" y="82" fill="#38bdf8" font-size="8" text-anchor="middle">S</text>
+        <text x="22" y="53" fill="#38bdf8" font-size="8" text-anchor="middle">W</text>
+      </svg>
+    </div>
+
+    <!-- لوحة حالة الاتصال وتمركز السفينة (أسفل اليسار) -->
+    <div class="floating-panel nav-status-panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+          </svg>
+          <span>حالة الملاحة والتمركز</span>
+        </div>
+        <span class="brand-badge" id="vesselSourceBadge">غير متصل</span>
+      </div>
+
+      <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.8; margin-bottom: 10px;">
+        <div>جهاز الاستقبال: <strong id="vesselSourceText" style="color: #fff;">لا يوجد</strong></div>
+        <div>دقة الإشارة (Fix): <strong id="vesselFixText" style="color: var(--accent-cyan);">Awaiting NMEA</strong></div>
+        <div>الأقمار الصناعية: <strong id="vesselSatsText" style="color: #fff;">0</strong></div>
+      </div>
+
+      <div style="display: flex; gap: 8px;">
+        <button class="hud-btn" id="btnCenterShip" style="flex: 1; justify-content: center;">توسيط سفينتي</button>
+        <button class="hud-btn" id="btnQuickConnect" style="flex: 1; justify-content: center;">ربط سريع</button>
+      </div>
+    </div>
+
+    <!-- لوحة رادار أهداف الـ AIS وتفادي التصادم (أسفل اليمين) -->
+    <div class="floating-panel ais-panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 19 21 12 17 5 21 12 2"/>
+          </svg>
+          <span>أهداف AIS وتفادي التصادم (CPA)</span>
+        </div>
+        <span id="aisCountBadge" style="font-size: 10px; color: var(--accent-green); font-family: var(--font-mono);">0 أهداف</span>
+      </div>
+
+      <div class="ais-table-container">
+        <table class="ais-table">
+          <thead>
+            <tr>
+              <th>السفينة</th>
+              <th>المسافة</th>
+              <th>CPA</th>
+              <th>TCPA</th>
+              <th>الحالة</th>
+            </tr>
+          </thead>
+          <tbody id="aisTableBody">
+            <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 16px;">لا توجد أهداف AIS مكتشفة حالياً (في انتظار إشارات الراديو الحقيقية)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- نافذة ربط الأجهزة الملاحية NMEA (Connections Modal) -->
+  <div class="drawer-backdrop" id="connectionsModal">
+    <div class="modal-card modal-card-wide">
+      <div class="modal-header">
+        <h3 class="modal-title">ربط أجهزة الملاحة و NMEA 0183 الحقيقية</h3>
+        <button class="modal-close-btn" id="btnCloseConnections">&times;</button>
+      </div>
+
+      <p style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
+        يدعم البرنامج الربط المباشر مع مستقبلات <strong>GPS Dongle</strong>، ومستقبلات <strong>AIS Receiver</strong>، وشاشات <strong>Chartplotters</strong>، وبوابات <strong>NMEA over Wi-Fi/UDP/TCP</strong>.
+      </p>
+
+      <!-- تبويبات الاتصال المتجاوبة بدون أي تجاوز للعرض -->
+      <div class="connection-grid">
+        <!-- بطاقة Serial Port -->
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 10px;">
+          <h4 style="font-size: 12px; color: var(--accent-cyan); margin-bottom: 8px;">1. منفذ Serial / USB</h4>
+          <div class="form-group">
+            <label class="form-label">المنفذ:</label>
+            <div style="display: flex; gap: 4px;">
+              <select class="form-select" id="selectSerialPort" style="flex: 1; padding: 6px;">
+                <option value="">جاري الفحص...</option>
+              </select>
+              <button class="hud-btn" id="btnRefreshPorts" title="إعادة الفحص" style="padding: 4px 8px;">&#8635;</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">معدل البود:</label>
+            <select class="form-select" id="selectBaudRate" style="padding: 6px;">
+              <option value="4800">4800 (GPS)</option>
+              <option value="38400">38400 (AIS)</option>
+              <option value="9600">9600</option>
+              <option value="115200">115200</option>
+            </select>
+          </div>
+
+          <button class="hud-btn" id="btnConnectSerial" style="width: 100%; justify-content: center; background: rgba(56, 189, 248, 0.2); border-color: var(--accent-cyan); padding: 8px 4px; font-size: 11px;">
+            اتصال Serial
+          </button>
+        </div>
+
+        <!-- بطاقة UDP Network -->
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 10px;">
+          <h4 style="font-size: 12px; color: var(--accent-green); margin-bottom: 8px;">2. شبكة UDP (Wi-Fi)</h4>
+          <div class="form-group">
+            <label class="form-label">منفذ الاستماع (Port):</label>
+            <input type="number" class="form-input" id="inputUdpPort" value="10110" placeholder="10110" style="padding: 6px;">
+          </div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-bottom: 30px;">
+            استماع لبث الراوتر أو البوابة البحرية عبر UDP Broadcast.
+          </div>
+
+          <button class="hud-btn" id="btnConnectUdp" style="width: 100%; justify-content: center; background: rgba(16, 185, 129, 0.2); border-color: var(--accent-green); padding: 8px 4px; font-size: 11px;">
+            استماع UDP
+          </button>
+        </div>
+
+        <!-- بطاقة TCP Client Network -->
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 10px;">
+          <h4 style="font-size: 12px; color: #f59e0b; margin-bottom: 8px;">3. شبكة TCP (Wi-Fi)</h4>
+          <div class="form-group">
+            <label class="form-label">عنوان الراوتر (IP):</label>
+            <input type="text" class="form-input" id="inputTcpHost" value="192.168.1.1" placeholder="192.168.1.1" style="padding: 6px;">
+          </div>
+          <div class="form-group">
+            <label class="form-label">المنفذ (Port):</label>
+            <input type="number" class="form-input" id="inputTcpPort" value="10110" placeholder="10110" style="padding: 6px;">
+          </div>
+
+          <button class="hud-btn" id="btnConnectTcp" style="width: 100%; justify-content: center; background: rgba(245, 158, 11, 0.2); border-color: #f59e0b; padding: 8px 4px; font-size: 11px;">
+            اتصال TCP
+          </button>
+        </div>
+      </div>
+
+      <!-- خيار الحفظ التلقائي للاتصال -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; background: rgba(15, 23, 42, 0.4); padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--accent-cyan); cursor: pointer;">
+          <input type="checkbox" id="chkAutoReconnect" checked style="accent-color: var(--accent-cyan); width: 15px; height: 15px;">
+          <span>حفظ بيانات هذا الاتصال وتفعيل الربط التلقائي عند بدء تشغيل البرنامج</span>
+        </label>
+        <span id="savedConnHint" style="font-size: 10px; color: var(--text-muted);">يتم التخزين في إعدادات التطبيق</span>
+      </div>
+
+      <!-- زر قطع الاتصال النشط -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <span style="font-size: 12px;">الحالة الحالية: <strong id="activeConnLabel" style="color: var(--accent-cyan);">غير متصل</strong></span>
+        <button class="hud-btn" id="btnDisconnectAll" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.4);">قطع الاتصال</button>
+      </div>
+
+      <!-- شاشة بث جمل NMEA اللحظية الحقيقية (Real-time NMEA Terminal Console) -->
+      <div style="margin-top: 6px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <span style="font-size: 11px; color: var(--text-secondary);">سجل جمل NMEA 0183 الواردة لحظياً:</span>
+          <button id="btnClearNmeaLog" style="background: none; border: none; color: var(--text-muted); font-size: 11px; cursor: pointer;">مسح السجل</button>
+        </div>
+        <div class="nmea-console" id="nmeaConsole">في انتظار تدفق جمل NMEA من الجهاز المتصل...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- نافذة التحكم في تفاصيل الخريطة الملاحية ومستويات العرض (Display Detail & Layers Modal) -->
+  <div class="drawer-backdrop" id="displayOptionsModal">
+    <div class="modal-card" style="max-width: 760px; width: 92%;">
+      <div class="modal-header">
+        <h3 class="modal-title">التحكم في مستويات وتفاصيل الخريطة الملاحية (ECDIS / OpenCPN Standard)</h3>
+        <button class="modal-close-btn" id="btnCloseDisplayOptions">&times;</button>
+      </div>
+
+      <!-- أوضاع العرض القياسية IHO S-52 -->
+      <div style="display: flex; gap: 8px; margin-bottom: 12px; background: rgba(15,23,42,0.6); padding: 6px; border-radius: var(--radius-sm);">
+        <button class="hud-btn display-cat-btn" data-cat="base" style="flex: 1; justify-content: center;">أساسي (Base)</button>
+        <button class="hud-btn display-cat-btn active" data-cat="standard" style="flex: 1; justify-content: center;">قياسي (Standard)</button>
+        <button class="hud-btn display-cat-btn" data-cat="all" style="flex: 1; justify-content: center;">كامل / مفصل (All)</button>
+      </div>
+
+      <!-- منزلق كثافة التفاصيل CM93 Detail Slider (-5 to +5) -->
+      <div style="background: rgba(15,23,42,0.6); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 12px; color: #fff; font-weight: 600;">منزلق كثافة وتفاصيل الخريطة (CM93 Detail Slider):</span>
+          <span id="detailFactorBadge" style="font-size: 12px; font-weight: 700; color: var(--accent-cyan); font-family: var(--font-mono); background: rgba(56,189,248,0.15); padding: 2px 8px; border-radius: 4px;">0</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="font-size: 11px; color: var(--text-muted);">-5 (موجز)</span>
+          <input type="range" id="sliderDetailFactor" min="-5" max="5" step="1" value="0" style="flex: 1; accent-color: var(--accent-cyan);">
+          <span style="font-size: 11px; color: var(--text-muted);">+5 (أقصى تفاصيل)</span>
+        </div>
+        <div style="font-size: 10px; color: var(--text-muted); margin-top: 6px;">
+          مطابق لمنزلق OpenCPN: يتيح إظهار الأعماق والعلامات الدقيقة عند التكبير الصغير أو إخفائها لمنع ازدحام الشاشة.
+        </div>
+      </div>
+
+      <!-- طبقات العرض المستقلة -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-bottom: 14px;">
+        <label class="form-checkbox-label">
+          <input type="checkbox" id="chkShowCountryNames" checked>
+          <span>أسماء الدول والأقاليم</span>
+        </label>
+        <label class="form-checkbox-label">
+          <input type="checkbox" id="chkShowCityNames" checked>
+          <span>المدن والموانئ البحرية</span>
+        </label>
+        <label class="form-checkbox-label">
+          <input type="checkbox" id="chkShowSeaNames" checked>
+          <span>البحار والمحيطات والخلجان</span>
+        </label>
+        <label class="form-checkbox-label">
+          <input type="checkbox" id="chkShowDepthContours" checked>
+          <span>خطوط ومناطق الأعماق</span>
+        </label>
+        <label class="form-checkbox-label">
+          <input type="checkbox" id="chkShowSoundings" checked>
+          <span>أعماق المياه النقطية (Soundings)</span>
+        </label>
+        <label class="form-checkbox-label">
+          <input type="checkbox" id="chkShowNavAids" checked>
+          <span>المنارات وعلامات الملاحة</span>
+        </label>
+        <label class="form-checkbox-label">
+          <input type="checkbox" id="chkShowLightSectors" checked>
+          <span>القطاعات الضوئية للمنارات</span>
+        </label>
+        <label class="form-checkbox-label">
+          <input type="checkbox" id="chkShowHazards" checked>
+          <span>حطام السفن والعوائق المائية</span>
+        </label>
+        <label class="form-checkbox-label">
+          <input type="checkbox" id="chkShowChartOutlines">
+          <span>حدود شبكة خلايا الخرائط</span>
+        </label>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button class="hud-btn" id="btnSaveDisplayDefaults" style="background: rgba(16, 185, 129, 0.2); border-color: var(--accent-green); color: #fff;">
+          حفظ كإعداد افتراضي دائم
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- نافذة المد والجزر والتيارات (XTide Modal) -->
+  <div class="drawer-backdrop" id="tidesModal">
+    <div class="modal-card" style="max-width: 600px;">
+      <div class="modal-header">
+        <h3 class="modal-title">توقعات المد والجزر والتيارات البحرية (XTide Offline)</h3>
+        <button class="modal-close-btn" id="btnCloseTides">&times;</button>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">المحطة البحرية الأقرب:</label>
+        <select class="form-select" id="selectTideStation">
+          <option value="">جاري البحث عن محطات...</option>
+        </select>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+        <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: var(--radius-sm); padding: 8px 12px;">
+          <div style="font-size: 11px; color: var(--accent-cyan);">أعلى مد متوقع (High Tide)</div>
+          <div id="tideHighVal" style="font-size: 16px; font-weight: 700; color: #fff; font-family: var(--font-mono);">--.- m</div>
+        </div>
+        <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: var(--radius-sm); padding: 8px 12px;">
+          <div style="font-size: 11px; color: var(--accent-green);">أدنى جزر متوقع (Low Tide)</div>
+          <div id="tideLowVal" style="font-size: 16px; font-weight: 700; color: #fff; font-family: var(--font-mono);">--.- m</div>
+        </div>
+      </div>
+
+      <!-- رسم منحنى المد والجزر على كانفاس مخصص -->
+      <canvas class="tide-graph-canvas" id="tideGraphCanvas" width="540" height="180"></canvas>
+      <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-muted); margin-top: 4px; font-family: var(--font-mono);">
+        <span>00:00</span>
+        <span>06:00</span>
+        <span>12:00</span>
+        <span>18:00</span>
+        <span>24:00</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- نافذة مدير الخرائط المحلية المنبثقة -->
+  <div class="drawer-backdrop" id="chartsModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">مكتبة الخرائط البحرية المحلية (Offline Charts)</h3>
+        <button class="modal-close-btn" id="btnCloseCharts">&times;</button>
+      </div>
+
+      <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">
+        يدعم البرنامج الفحص المباشر لكافة صيغ الخرائط الملاحية المخزنة على حاسوبك:
+        <strong>S-57 ENC (.000)</strong>، <strong>BSB/KAP</strong>، <strong>MBTiles</strong>، و <strong>CM93</strong> بدون الحاجة لإنترنت.
+      </p>
+
+      <!-- مسار الخرائط النشط والمحفوظ في الإعدادات -->
+      <div id="activeChartDirBanner" style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 11px; margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-weight: 700; color: #fff; margin-bottom: 2px;">مسار الخرائط المحفوظ (يتم التحميل تلقائياً):</div>
+            <span id="lblSavedChartDir" style="color: var(--accent-cyan); font-family: var(--font-mono); direction: ltr; display: inline-block;">F:\DIGITAL CHARTS IN ENC FORMAT\CM93</span>
+          </div>
+          <button class="hud-btn" id="btnReloadSavedCharts" style="padding: 4px 10px; font-size: 11px;">إعادة الفحص الآن</button>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 10px;">
+        <button class="hud-btn" id="btnSelectChartFolder" style="flex: 1; justify-content: center; padding: 10px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span>اختيار مجلد خرائط محلي آخر</span>
+        </button>
+      </div>
+
+      <!-- طبقات وخيارات العرض للخرائط الملاحية -->
+      <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px;">
+        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+          <input type="checkbox" id="chkChartOutlines" checked style="accent-color: var(--accent-cyan);">
+          <span>حدود الخرائط (Outlines)</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+          <input type="checkbox" id="chkRasterCharts" checked style="accent-color: var(--accent-cyan);">
+          <span>الخرائط النقطية (BSB/KAP)</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+          <input type="checkbox" id="chkDepthContours" checked style="accent-color: var(--accent-cyan);">
+          <span>خطوط الأعماق (Contours)</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+          <input type="checkbox" id="chkNavAids" checked style="accent-color: var(--accent-cyan);">
+          <span>المنارات والعلامات (AtoN)</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+          <input type="checkbox" id="chkSoundings" checked style="accent-color: var(--accent-cyan);">
+          <span>أعماق نقطية (Soundings)</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+          <input type="checkbox" id="chkTides" checked style="accent-color: var(--accent-cyan);">
+          <span>محطات المد والجزر (XTide)</span>
+        </label>
+        <div style="grid-column: span 2; display: flex; align-items: center; justify-content: space-between; margin-top: 4px;">
+          <span>شفافية الخرائط النقطية:</span>
+          <input type="range" id="sliderRasterOpacity" min="0.1" max="1" step="0.05" value="0.85" style="width: 140px; accent-color: var(--accent-cyan);">
+        </div>
+      </div>
+
+      <div id="chartScanResults" style="max-height: 220px; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: var(--radius-sm); padding: 10px; font-size: 12px;">
+        <div style="color: var(--text-muted); text-align: center; padding: 20px;">لم يتم فحص مجلد بعد. اضغط على الزر أعلاه لتحديد مجلد الخرائط.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- نافذة تخطيط المسارات والنقاط الإرشادية (Routes & Waypoints Modal) -->
+  <div class="drawer-backdrop" id="routesModal">
+    <div class="modal-card" style="max-width: 680px; max-height: 85vh; overflow-y: auto;">
+      <div class="modal-header">
+        <h3 class="modal-title">تخطيط المسارات والنقاط الإرشادية (Routes & GPX)</h3>
+        <button class="modal-close-btn" id="btnCloseRoutes">&times;</button>
+      </div>
+
+      <!-- شريط تحكم الطيار الآلي NMEA Output -->
+      <div class="autopilot-banner">
+        <div>
+          <div style="font-weight: 700; color: #fff; font-size: 13px;">توجيه الطيار الآلي البحري (Autopilot NMEA Output)</div>
+          <div style="font-size: 11px; color: var(--text-secondary);">إرسال جمل $GPAPB و $GPRMB و $GPXTE إلى أجهزة التوجيه الآلي</div>
+        </div>
+        <button class="hud-btn" id="btnToggleAutopilot" style="padding: 6px 14px;">
+          <span id="autopilotStatusText">تشغيل الطيار الآلي</span>
+        </button>
+      </div>
+
+      <!-- أزرار العمليات السريعة للمسارات والـ GPX -->
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <button class="hud-btn" id="btnStartRouteDraw" style="background: rgba(245, 158, 11, 0.2); border-color: #f59e0b; color: #fef08a;">
+          <span>&#9998; رسم مسار على الخريطة</span>
+        </button>
+        <button class="hud-btn" id="btnOpenNewWptForm">
+          <span>+ إضافة نقطة إرشادية</span>
+        </button>
+        <button class="hud-btn" id="btnExportAllGpx">
+          <span>&#8682; تصدير ملف GPX</span>
+        </button>
+        <button class="hud-btn" id="btnImportGpxFile">
+          <span>&#8681; استيراد ملف GPX</span>
+        </button>
+      </div>
+
+      <!-- نموذج إضافة نقطة إرشادية يدوياً (مخفي افتراضياً) -->
+      <div id="manualWptForm" style="display: none; background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px;">
+        <h4 style="font-size: 12px; color: var(--accent-cyan); margin-bottom: 8px;">إضافة نقطة إرشادية جديدة</h4>
+        <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+          <input type="text" class="form-input" id="inputWptName" placeholder="اسم النقطة (مثلاً: Ras Mohammed)">
+          <input type="number" step="0.0001" class="form-input" id="inputWptLat" placeholder="خط العرض Lat">
+          <input type="number" step="0.0001" class="form-input" id="inputWptLon" placeholder="خط الطول Lon">
+        </div>
+        <div style="display: flex; gap: 8px; justify-content: flex-end;">
+          <button class="hud-btn" id="btnSaveManualWpt" style="background: rgba(16, 185, 129, 0.2); border-color: var(--accent-green);">حفظ النقطة</button>
+          <button class="hud-btn" id="btnCancelManualWpt">إلغاء</button>
+        </div>
+      </div>
+
+      <!-- قائمة المسارات المخزنة -->
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <h4 style="font-size: 13px; color: #fff; font-weight: 700;">المسارات الملاحية المحفوظة</h4>
+          <span id="routesCountBadge" style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);">0 مسارات</span>
+        </div>
+        <div id="routesListContainer" style="max-height: 200px; overflow-y: auto;">
+          <div style="color: var(--text-muted); text-align: center; padding: 16px; font-size: 12px;">لا توجد مسارات محفوظة حالياً. اضغط "رسم مسار" للبدء.</div>
+        </div>
+      </div>
+
+      <!-- قائمة النقاط الإرشادية المنفصلة -->
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <h4 style="font-size: 13px; color: #fff; font-weight: 700;">النقاط الإرشادية (Waypoints)</h4>
+          <span id="waypointsCountBadge" style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);">0 نقاط</span>
+        </div>
+        <div id="waypointsListContainer" style="max-height: 160px; overflow-y: auto;">
+          <div style="color: var(--text-muted); text-align: center; padding: 16px; font-size: 12px;">لا توجد نقاط إرشادية منفصلة.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- نافذة حول البرنامج (About Dialog) وفق معايير ARN Technology -->
+  <div class="drawer-backdrop" id="aboutModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">حول برنامج ARN Marine Navigator</h3>
+        <button class="modal-close-btn" id="btnCloseAbout">&times;</button>
+      </div>
+
+      <div style="text-align: center;">
+        <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="1.5" style="margin: 0 auto 10px;">
+          <circle cx="12" cy="12" r="10"/>
+          <polygon points="12 2 15 12 12 10 9 12 12 2" fill="#38bdf8"/>
+          <polygon points="12 22 9 12 12 14 15 12 12 22" fill="#1e293b"/>
+        </svg>
+        <h2 style="font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 4px;">ARN Marine Navigator</h2>
+        <div style="font-size: 12px; color: var(--accent-cyan); font-family: var(--font-mono); margin-bottom: 12px;">الإصدار 1.0.0 (السيادي دون إنترنت)</div>
+        
+        <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 14px;">
+          نظام الملاحة وتخطيط المسارات البحرية التكتيكي المتقدم، البديل العصري لبرنامج OpenCPN بدعم كامل للخرائط المحلية والرؤية الليلية وتفادي التصادم.
+        </p>
+
+        <!-- توقيع المطور باللون الأخضر المميز وفق القواعد -->
+        <div class="developer-signature" style="color: #10b981; font-size: 15px; font-weight: 700; margin-bottom: 6px;">
+          تطوير وبرمجة: عبده رجب نصار
+        </div>
+        
+        <!-- نص حقوق الملكية الصارم -->
+        <div class="copyright-text" style="color: #94a3b8; font-size: 12px; margin-bottom: 16px;">
+          حقوق النشر (c) 2026 لشركة ARN Technology. جميع الحقوق محفوظة.
+        </div>
+
+        <!-- أزرار السوشيال ميديا الدائرية وفق القواعد -->
+        <div class="social-buttons-container">
+          <!-- واتساب -->
+          <a href="#" class="social-circle-btn" id="linkWhatsApp" title="WhatsApp: +201556710314">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#25D366" stroke-width="2">
+              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+            </svg>
+          </a>
+
+          <!-- تيليجرام -->
+          <a href="#" class="social-circle-btn" id="linkTelegram" title="Telegram: @ABDOURNASSAR95">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0088cc" stroke-width="2">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </a>
+
+          <!-- فيسبوك -->
+          <a href="#" class="social-circle-btn" id="linkFacebook" title="Facebook: abdouragab.nassar">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1877F2" stroke-width="2">
+              <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
+            </svg>
+          </a>
+
+          <!-- ماسنجر -->
+          <a href="#" class="social-circle-btn" id="linkMessenger" title="Messenger: abdouragab.nassar">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00B2FF" stroke-width="2">
+              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+              <path d="m8 13 3-3 2 2 3-3-3 3-2-2z"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ملفات المنطق والخرائط والطقس -->
+  <script src="grib_layer.js"></script>
+  <script src="chart_engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
